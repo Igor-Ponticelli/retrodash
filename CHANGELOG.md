@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.6.1...v1.7.0) (2026-07-06)
+
+### Features
+
+* set pt-BR as the default locale ([#33](https://github.com/Igor-Ponticelli/retrodash/issues/33)) ([99d3818](https://github.com/Igor-Ponticelli/retrodash/commit/99d38185147e2c1c5df520d4dc6650172bfdacd6))
+
 ## [1.6.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.6.0...v1.6.1) (2026-06-01)
 
 ### Bug Fixes
