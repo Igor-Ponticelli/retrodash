@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { routing } from "@/i18n/routing";
 import "../globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -34,7 +35,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = meta[locale as keyof typeof meta] ?? meta.en;
+  const t = meta[locale as keyof typeof meta] ?? meta[routing.defaultLocale];
 
   return {
     title: t.title,
