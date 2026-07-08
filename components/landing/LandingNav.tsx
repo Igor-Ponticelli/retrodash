@@ -7,7 +7,7 @@ import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Link, usePathname } from "@/i18n/navigation";
 
-export function LandingNav({ ctaHref, ctaLabel, loading }: CTAProps) {
+export function LandingNav({ ctaHref, ctaLabel }: CTAProps) {
   const t = useTranslations("landing");
   const pathname = usePathname();
   return (
@@ -46,12 +46,7 @@ export function LandingNav({ ctaHref, ctaLabel, loading }: CTAProps) {
           <span aria-hidden className="text-border hidden sm:block">
             |
           </span>
-          <CTALink
-            href={ctaHref}
-            label={ctaLabel}
-            loading={loading}
-            size="sm"
-          />
+          <CTALink href={ctaHref} label={ctaLabel} size="sm" />
         </nav>
       </div>
     </header>

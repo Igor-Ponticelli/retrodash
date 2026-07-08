@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { Reveal } from "@/components/ui/Reveal";
 import { CTALink, type CTAProps } from "@/components/ui/CTALink";
 
-export function FinalCTASection({ ctaHref, ctaLabel, loading }: CTAProps) {
+export function FinalCTASection({ ctaHref, ctaLabel }: CTAProps) {
   const t = useTranslations("landing.cta");
   return (
     <section className="py-32 border-t border-border relative overflow-hidden bg-bg-surface">
@@ -36,7 +36,7 @@ export function FinalCTASection({ ctaHref, ctaLabel, loading }: CTAProps) {
               {t("subtitle")}
             </p>
             <div className="flex justify-center">
-              <CTALink href={ctaHref} label={ctaLabel} loading={loading} size="lg" variant="gradient" />
+              <CTALink href={ctaHref} label={ctaLabel} size="lg" variant="gradient" />
             </div>
             <p className="mt-6 text-text-muted text-xs">{t("notice")}</p>
           </div>
