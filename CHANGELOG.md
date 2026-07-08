@@ -1,3 +1,9 @@
+## [1.7.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.0...v1.7.1) (2026-07-08)
+
+### Bug Fixes
+
+* keep landing CTA label fixed to avoid layout shift before auth resolves ([#34](https://github.com/Igor-Ponticelli/retrodash/issues/34)) ([b02331b](https://github.com/Igor-Ponticelli/retrodash/commit/b02331b5b62ab3a9a684f4c3f40fc06538c957c0))
+
 ## [1.7.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.6.1...v1.7.0) (2026-07-06)
 
 ### Features
