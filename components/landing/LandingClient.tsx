@@ -12,21 +12,21 @@ import { FinalCTASection } from "./FinalCTASection";
 import { SiteFooter } from "./SiteFooter";
 
 export function LandingClient() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const t = useTranslations("landing");
   const ctaHref = user ? "/dashboard" : "/login";
-  const ctaLabel = user ? t("nav.accessDashboard") : t("nav.getStarted");
+  const ctaLabel = t("nav.getStarted");
 
   return (
     <div className="min-h-screen bg-bg-base text-text-primary flex flex-col overflow-x-hidden">
-      <LandingNav ctaHref={ctaHref} ctaLabel={ctaLabel} loading={loading} />
+      <LandingNav ctaHref={ctaHref} ctaLabel={ctaLabel} />
       <main className="flex-1">
-        <HeroSection ctaHref={ctaHref} ctaLabel={ctaLabel} loading={loading} />
+        <HeroSection ctaHref={ctaHref} ctaLabel={ctaLabel} />
         <FeaturesSection />
         <WhySection />
         <HowItWorksSection />
         <UseCasesSection />
-        <FinalCTASection ctaHref={ctaHref} ctaLabel={ctaLabel} loading={loading} />
+        <FinalCTASection ctaHref={ctaHref} ctaLabel={ctaLabel} />
       </main>
       <SiteFooter />
     </div>

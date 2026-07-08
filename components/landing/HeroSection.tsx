@@ -3,7 +3,7 @@ import { CTALink, type CTAProps } from "@/components/ui/CTALink";
 import { ArrowRightIcon } from "@/components/ui/Icons";
 import { BoardPreview } from "./BoardPreview";
 
-export function HeroSection({ ctaHref, ctaLabel, loading }: CTAProps) {
+export function HeroSection({ ctaHref, ctaLabel }: CTAProps) {
   const t = useTranslations("landing");
   return (
     <section className="relative min-h-[88vh] flex items-center overflow-hidden">
@@ -57,12 +57,7 @@ export function HeroSection({ ctaHref, ctaLabel, loading }: CTAProps) {
                 "fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 220ms both",
             }}
           >
-            <CTALink
-              href={ctaHref}
-              label={ctaLabel}
-              loading={loading}
-              size="lg"
-            />
+            <CTALink href={ctaHref} label={ctaLabel} size="lg" />
             <a
               href="#how-it-works"
               className="text-text-muted hover:text-text-primary text-sm transition-colors inline-flex items-center gap-1.5"

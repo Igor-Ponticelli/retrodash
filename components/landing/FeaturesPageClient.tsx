@@ -102,11 +102,11 @@ function FeatureBlock({
 }
 
 export function FeaturesPageClient() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const t = useTranslations("featuresPage");
   const tLanding = useTranslations("landing");
   const ctaHref = user ? "/dashboard" : "/login";
-  const ctaLabel = user ? tLanding("nav.accessDashboard") : tLanding("nav.getStarted");
+  const ctaLabel = tLanding("nav.getStarted");
 
   const features = [
     {
@@ -167,7 +167,7 @@ export function FeaturesPageClient() {
 
   return (
     <div className="min-h-screen bg-bg-base text-text-primary flex flex-col overflow-x-hidden">
-      <LandingNav ctaHref={ctaHref} ctaLabel={ctaLabel} loading={loading} />
+      <LandingNav ctaHref={ctaHref} ctaLabel={ctaLabel} />
       <main className="flex-1">
         <section className="relative py-28 overflow-hidden">
           <div className="absolute inset-0 pointer-events-none" aria-hidden>
@@ -209,7 +209,7 @@ export function FeaturesPageClient() {
             <div
               style={{ animation: "fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 300ms both" }}
             >
-              <CTALink href={ctaHref} label={ctaLabel} loading={loading} size="lg" variant="gradient" />
+              <CTALink href={ctaHref} label={ctaLabel} size="lg" variant="gradient" />
             </div>
           </div>
         </section>
@@ -223,7 +223,7 @@ export function FeaturesPageClient() {
             <Reveal>
               <h2 className="text-3xl font-bold tracking-tight mb-4">{t("ctaTitle")}</h2>
               <p className="text-text-secondary mb-8">{t("ctaSubtitle")}</p>
-              <CTALink href={ctaHref} label={ctaLabel} loading={loading} size="lg" variant="gradient" />
+              <CTALink href={ctaHref} label={ctaLabel} size="lg" variant="gradient" />
             </Reveal>
           </div>
         </section>

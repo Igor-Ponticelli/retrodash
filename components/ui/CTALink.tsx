@@ -3,13 +3,12 @@ import { Link } from "@/i18n/navigation";
 export interface CTAProps {
   ctaHref: string;
   ctaLabel: string;
-  loading: boolean;
 }
 
 interface CTALinkProps {
   href: string;
   label: string;
-  loading: boolean;
+  loading?: boolean;
   size?: "sm" | "md" | "lg";
   variant?: "solid" | "gradient";
 }
@@ -23,13 +22,14 @@ const sizes: Record<"sm" | "md" | "lg", string> = {
 export function CTALink({
   href,
   label,
-  loading,
+  loading = false,
   size = "md",
   variant = "solid",
 }: CTALinkProps) {
   return (
     <Link
-      href={loading ? "#" : href}
+      href={href}
+      aria-disabled={loading}
       className={`inline-flex items-center justify-center rounded-lg font-semibold text-bg-base hover:opacity-90 transition-opacity ${sizes[size]} ${variant === "solid" ? "bg-cta" : ""} ${loading ? "opacity-50 pointer-events-none" : ""}`}
       style={
         variant === "gradient"
@@ -37,7 +37,7 @@ export function CTALink({
           : undefined
       }
     >
-      {loading ? "   " : label}
+      {label}
     </Link>
   );
 }
