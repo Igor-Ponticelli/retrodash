@@ -62,6 +62,7 @@ export interface ScoreboardEntry {
   cardsCount: number;
   actionItemsCount: number;
   votesReceived: number;
+  commentsCount: number;
   totalPoints: number;
   position: number;
 }
