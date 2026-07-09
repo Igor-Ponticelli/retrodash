@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { CardComments } from "@/components/board/CardComments";
@@ -59,7 +59,10 @@ export function CardItem({
   const [addingLinkedItem, setAddingLinkedItem] = useState(false);
   const [linkedCardOpen, setLinkedCardOpen] = useState(false);
   const [previousEditText, setPreviousEditText] = useState<string | null>(null);
+  const [suggestingAction, setSuggestingAction] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   const t = useTranslations("board");
+  const locale = useLocale();
 
   const MAX_CHARS = 320;
   const editOverLimit = editText.length > MAX_CHARS;
@@ -125,6 +128,30 @@ export function CardItem({
     setLinkedItemText("");
     setIsAddingLinkedItem(false);
     setAddingLinkedItem(false);
+  };
+
+  const handleSuggestAction = async () => {
+    if (suggestingAction) return;
+    setIsAddingLinkedItem(true);
+    setSuggestingAction(true);
+    setSuggestError(null);
+    try {
+      const res = await fetch("/api/improve-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: card.text, type: "suggest-action", locale }),
+      });
+      const data = await res.json();
+      if (data.improved) {
+        setLinkedItemText(data.improved);
+      } else {
+        setSuggestError(t("suggestActionItemError"));
+      }
+    } catch {
+      setSuggestError(t("suggestActionItemError"));
+    } finally {
+      setSuggestingAction(false);
+    }
   };
 
   const handleImprove = async () => {
@@ -323,6 +350,7 @@ export function CardItem({
                 <div className="space-y-1.5">
                   <input
                     autoFocus
+                    disabled={suggestingAction}
                     value={linkedItemText}
                     onChange={(e) => setLinkedItemText(e.target.value)}
                     onKeyDown={(e) => {
@@ -330,15 +358,19 @@ export function CardItem({
                       if (e.key === "Escape") {
                         setIsAddingLinkedItem(false);
                         setLinkedItemText("");
+                        setSuggestError(null);
                       }
                     }}
-                    placeholder={t("actionItemPlaceholder")}
-                    className="w-full text-xs bg-bg-card border border-border rounded px-2 py-1 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
+                    placeholder={suggestingAction ? t("suggestingActionItem") : t("actionItemPlaceholder")}
+                    className="w-full text-xs bg-bg-card border border-border rounded px-2 py-1 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary disabled:opacity-60"
                   />
+                  {suggestError && (
+                    <p className="text-[10px] text-red-500">{suggestError}</p>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleAddLinkedItem}
-                      disabled={addingLinkedItem || !linkedItemText.trim() || linkedOverLimit}
+                      disabled={addingLinkedItem || suggestingAction || !linkedItemText.trim() || linkedOverLimit}
                       className="px-2 h-5 rounded text-[10px] font-semibold bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {t("add")}
@@ -347,24 +379,42 @@ export function CardItem({
                       onClick={() => {
                         setIsAddingLinkedItem(false);
                         setLinkedItemText("");
+                        setSuggestError(null);
                       }}
                       className="px-2 h-5 rounded text-[10px] text-text-muted hover:text-text-primary transition-colors cursor-pointer"
                     >
                       {t("cancel")}
                     </button>
-                    <span className={`ml-auto text-[10px] tabular-nums ${linkedOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}>
-                      {linkedItemText.length}/{MAX_CHARS}
-                    </span>
+                    {suggestingAction ? (
+                      <span className="ml-auto">
+                        <MiniSpinner />
+                      </span>
+                    ) : (
+                      <span className={`ml-auto text-[10px] tabular-nums ${linkedOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}>
+                        {linkedItemText.length}/{MAX_CHARS}
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setIsAddingLinkedItem(true)}
-                  className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent-primary transition-colors cursor-pointer"
-                >
-                  <SmallPlusIcon />
-                  {t("addActionItem")}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsAddingLinkedItem(true)}
+                    className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent-primary transition-colors cursor-pointer"
+                  >
+                    <SmallPlusIcon />
+                    {t("addActionItem")}
+                  </button>
+                  {card.text.length <= 500 && (
+                    <button
+                      onClick={handleSuggestAction}
+                      className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent-violet transition-colors cursor-pointer"
+                    >
+                      <SparkleIcon />
+                      {t("suggestActionItem")}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
