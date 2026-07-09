@@ -117,6 +117,30 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['actionStatus']) &&
          request.resource.data.actionStatus in ["pending", "done", "keep"])
         ||
+        // Any participant sets or clears the assignee on a published action item.
+        // Restricted to cards that already carry actionStatus (only action-item
+        // cards get one), and the assignee must be a current room participant so
+        // an arbitrary uid can't be written into assigneeId. All three fields
+        // must change together (exact set, not hasOnly's subset) so a partial
+        // update can't change assigneeId while leaving a stale assigneeName/
+        // assigneePhotoURL from a previous assignee mismatched to the new id.
+        (resource.data.published == true &&
+         resource.data.actionStatus is string &&
+         request.resource.data.diff(resource.data).affectedKeys() == ['assigneeId', 'assigneeName', 'assigneePhotoURL'].toSet() &&
+         (
+           // Clearing: all three fields removed
+           (!request.resource.data.keys().hasAny(['assigneeId', 'assigneeName', 'assigneePhotoURL']))
+           ||
+           // Setting: assigneeId must be an existing participant of this room
+           (request.resource.data.assigneeId is string &&
+            exists(/databases/$(database)/documents/rooms/$(roomId)/participants/$(request.resource.data.assigneeId)) &&
+            request.resource.data.assigneeName is string &&
+            request.resource.data.assigneeName.size() > 0 &&
+            request.resource.data.assigneeName.size() <= 200 &&
+            (request.resource.data.assigneePhotoURL is string || request.resource.data.assigneePhotoURL == null) &&
+            (request.resource.data.assigneePhotoURL == null || request.resource.data.assigneePhotoURL.size() <= 2000))
+         ))
+        ||
         // Any participant votes — set-based validation prevents forged vote counts
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'votedBy']) &&
          (
@@ -223,6 +247,14 @@ service cloud.firestore {
     // statically validate the where("userId","==",uid) query constraint.
     match /{path=**}/participants/{participantId} {
       allow read: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── CollectionGroup: cards ──────────────────────────────────────
+    // Required for the collectionGroup("cards") query in getMyActionItems
+    // (Navbar "my action items" list). Scoped to cards the caller is
+    // assigned to — no broader cross-room card visibility is granted.
+    match /{path=**}/cards/{cardId} {
+      allow read: if isAuth() && resource.data.assigneeId == request.auth.uid;
     }
 
     // ── Feedback ───────────────────────────────────────────────────
