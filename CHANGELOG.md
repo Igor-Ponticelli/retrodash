@@ -1,3 +1,9 @@
+## [1.9.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.8.0...v1.9.0) (2026-07-09)
+
+### Features
+
+* allow assigning action items to a room participant ([#37](https://github.com/Igor-Ponticelli/retrodash/issues/37)) ([c15bf72](https://github.com/Igor-Ponticelli/retrodash/commit/c15bf72431bb7235dd984a32643f727737770c90))
+
 ## [1.8.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.2...v1.8.0) (2026-07-09)
 
 ### Features
