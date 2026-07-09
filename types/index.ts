@@ -29,6 +29,9 @@ export interface Card {
   votedBy: string[];
   done?: boolean;
   actionStatus?: "pending" | "done" | "keep";
+  assigneeId?: string;
+  assigneeName?: string;
+  assigneePhotoURL?: string | null;
   published?: boolean;
   linkedCardId?: string;
   linkedCardText?: string;

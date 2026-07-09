@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
@@ -10,12 +10,13 @@ import {
   deleteCard,
   toggleVote,
   setActionStatus,
+  setCardAssignee,
   publishCard,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import type { Card } from "@/types";
+import type { Card, Participant } from "@/types";
 
 interface CardProps {
   card: Card;
@@ -30,6 +31,7 @@ interface CardProps {
   linkedActionItems?: Card[];
   onAddLinkedActionItem?: (text: string) => Promise<void>;
   linkedCard?: Card;
+  participants?: Participant[];
 }
 
 export function CardItem({
@@ -45,6 +47,7 @@ export function CardItem({
   linkedActionItems,
   onAddLinkedActionItem,
   linkedCard,
+  participants = [],
 }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(card.text);
@@ -418,11 +421,21 @@ export function CardItem({
                 {card.votedBy.length > 0 && <span>{card.votedBy.length}</span>}
               </button>
             ) : (
-              <ActionStatusSegment
-                status={actionStatus}
-                onChange={(s) => setActionStatus(roomId, card.id, s)}
-                t={t}
-              />
+              <>
+                {!isAnonymous && (
+                  <AssigneeSelector
+                    roomId={roomId}
+                    card={card}
+                    participants={participants}
+                    t={t}
+                  />
+                )}
+                <ActionStatusSegment
+                  status={actionStatus}
+                  onChange={(s) => setActionStatus(roomId, card.id, s)}
+                  t={t}
+                />
+              </>
             )}
           </div>
         </div>
@@ -467,6 +480,112 @@ function ActionStatusSegment({
         </button>
       ))}
     </div>
+  );
+}
+
+function AssigneeSelector({
+  roomId,
+  card,
+  participants,
+  t,
+}: {
+  roomId: string;
+  card: Card;
+  participants: Participant[];
+  t: ReturnType<typeof import("next-intl").useTranslations<"board">>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleSelect = async (participant: Participant | null) => {
+    setSaving(true);
+    try {
+      await setCardAssignee(
+        roomId,
+        card.id,
+        participant
+          ? { id: participant.id, name: participant.displayName, photoURL: participant.photoURL }
+          : null,
+      );
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        aria-label={card.assigneeName ? t("assignedTo", { name: card.assigneeName }) : t("assign")}
+        title={card.assigneeName ? t("assignedTo", { name: card.assigneeName }) : t("assign")}
+        className="flex items-center justify-center rounded-full ring-2 ring-transparent hover:ring-accent-primary transition-all cursor-pointer disabled:opacity-50"
+      >
+        {card.assigneeId ? (
+          <Avatar photoURL={card.assigneePhotoURL} name={card.assigneeName ?? "?"} size={22} />
+        ) : (
+          <span className="size-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-text-muted hover:text-text-primary hover:border-text-muted transition-colors">
+            <PersonPlusIcon />
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 bottom-full mb-2 z-10 w-48 max-h-56 overflow-y-auto bg-bg-card border border-border rounded-lg shadow-xl p-1.5">
+          {card.assigneeId && (
+            <button
+              type="button"
+              onClick={() => handleSelect(null)}
+              className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
+            >
+              {t("unassign")}
+            </button>
+          )}
+          {participants.length === 0 ? (
+            <p className="px-2 py-1.5 text-xs text-text-muted">{t("noParticipants")}</p>
+          ) : (
+            participants.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handleSelect(p)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  card.assigneeId === p.id
+                    ? "bg-accent-primary/15 text-accent-primary"
+                    : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                }`}
+              >
+                <Avatar photoURL={p.photoURL} name={p.displayName} size={20} />
+                <span className="truncate">{p.displayName}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonPlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" />
+      <circle cx="8.5" cy="7.5" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
   );
 }
 

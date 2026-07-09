@@ -1,5 +1,5 @@
 import { BoardColumn } from "@/components/board/Column";
-import type { Column, Card } from "@/types";
+import type { Column, Card, Participant } from "@/types";
 
 interface BoardProps {
   columns: Column[];
@@ -12,6 +12,7 @@ interface BoardProps {
   isFacilitator: boolean;
   isRetroLive?: boolean;
   filterAuthorId?: string | null;
+  participants?: Participant[];
 }
 
 export function Board({
@@ -25,6 +26,7 @@ export function Board({
   isFacilitator,
   isRetroLive = true,
   filterAuthorId,
+  participants = [],
 }: BoardProps) {
   const regularCols = columns
     .filter((col) => !col.isActionItems)
@@ -55,6 +57,7 @@ export function Board({
     isRetroLive,
     actionItemsColumnId,
     allVisibleCards: visibleCards,
+    participants,
   };
 
   return (

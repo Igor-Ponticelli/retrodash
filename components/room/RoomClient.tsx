@@ -223,6 +223,7 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
           isFacilitator={isFacilitator}
           isRetroLive={room.status === "active"}
           filterAuthorId={filterAuthorId}
+          participants={participants}
         />
       </div>
 

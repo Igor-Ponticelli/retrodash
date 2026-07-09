@@ -6,7 +6,7 @@ import { addCard } from "@/lib/firestore";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { CardItem } from "@/components/board/Card";
-import type { Column, Card } from "@/types";
+import type { Column, Card, Participant } from "@/types";
 
 interface ColumnProps {
   column: Column;
@@ -20,6 +20,7 @@ interface ColumnProps {
   isRetroLive?: boolean;
   actionItemsColumnId?: string;
   allVisibleCards?: Card[];
+  participants?: Participant[];
 }
 
 export function BoardColumn({
@@ -34,6 +35,7 @@ export function BoardColumn({
   isRetroLive = true,
   actionItemsColumnId,
   allVisibleCards = [],
+  participants = [],
 }: ColumnProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -175,6 +177,7 @@ export function BoardColumn({
                     ? allVisibleCards.find((c) => c.id === card.linkedCardId)
                     : undefined
                 }
+                participants={participants}
               />
             </div>
           ))}
@@ -211,6 +214,7 @@ export function BoardColumn({
                         : undefined
                     }
                     linkedCard={undefined}
+                    participants={participants}
                   />
                 </div>
               ))}

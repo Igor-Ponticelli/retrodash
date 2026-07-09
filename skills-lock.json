@@ -25,6 +25,24 @@
       "skillPath": "skills/14-gcp-skills/firestore-index-creator/SKILL.md",
       "computedHash": "96af90739504195e3c7faa211bec4fc9b5b3432d153bc11665b1249813aded0c"
     },
+    "i18n": {
+      "source": "lobehub/lobe-chat",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/i18n/SKILL.md",
+      "computedHash": "cf32535051471bf46dcdf888ee7afcd70c7e6a9d4f74f6b342fc94f76ed6bb6c"
+    },
+    "i18n-frontend-implementer": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "skillPath": "frontend/i18n-frontend-implementer/SKILL.md",
+      "computedHash": "9802b2f12cbd5353cf5aedaa7a19ee897556457e8fb3bea77d1299b05608f060"
+    },
+    "i18n-localization": {
+      "source": "vudovn/antigravity-kit",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/i18n-localization/SKILL.md",
+      "computedHash": "65801eecc6920926986705379a95f630472f0127040f4c23c831a642330f47e7"
+    },
     "nextjs-app-router-patterns": {
       "source": "wshobson/agents",
       "sourceType": "github",

@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "retrodash-desenvolvimento",
+    "production": "retrodash-igor"
+  }
+}

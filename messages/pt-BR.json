@@ -330,12 +330,15 @@
     "scoreboardComments": "Comentários",
     "scoreboardPoints": "Pontos",
     "scoreboardEmpty": "Nenhuma contribuição ainda.",
-    "anonymous": "Anônimo"
+    "anonymous": "Anônimo",
+    "assignedTo": "Responsável: {name}"
   },
   "navbar": {
     "signOut": "Sair",
     "feedback": "Feedback",
-    "myAccount": "Minha conta"
+    "myAccount": "Minha conta",
+    "myActionItems": "Meus itens de ação",
+    "myActionItemsEmpty": "Nenhum item de ação atribuído a você ainda."
   },
   "language": {
     "label": "Idioma",
@@ -396,7 +399,8 @@
     "selectAll": "Selecionar todos",
     "selectedCount": "{selected} de {total} selecionados",
     "statusKeep": "Manter",
-    "fromCard": "De:"
+    "fromCard": "De:",
+    "assignedTo": "Responsável: {name}"
   },
   "board": {
     "actionItems": "Itens de Ação",
@@ -430,7 +434,11 @@
     "improveWithAIHint": "Envia o texto deste card ao Google Gemini.",
     "improveWithAIHintLink": "Saiba mais.",
     "fromCard": "De:",
-    "anonymous": "Anônimo"
+    "anonymous": "Anônimo",
+    "assign": "Atribuir",
+    "unassign": "Remover responsável",
+    "assignedTo": "Responsável: {name}",
+    "noParticipants": "Nenhum participante nesta sala ainda."
   },
   "comments": {
     "title": "Comentários",

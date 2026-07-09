@@ -7,10 +7,11 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { signOut } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { useMyActionItems } from "@/hooks/useMyActionItems";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { RetroDashLogo, RetroDashIcon } from "@/components/ui/RetroDashLogo";
-import { MenuIcon, MessageIcon } from "@/components/ui/Icons";
+import { MenuIcon, MessageIcon, CircleIcon, CheckIcon, LoopIcon } from "@/components/ui/Icons";
 
 interface NavbarProps {
   logoHref?: string;
@@ -85,8 +86,12 @@ export function Navbar({
 
   const logo = (
     <>
-      <span className="min-[450px]:hidden shrink-0"><RetroDashIcon size={28} /></span>
-      <span className="hidden min-[450px]:block shrink-0"><RetroDashLogo className="w-20.5 lg:w-27.5" /></span>
+      <span className="min-[450px]:hidden shrink-0">
+        <RetroDashIcon size={28} />
+      </span>
+      <span className="hidden min-[450px]:block shrink-0">
+        <RetroDashLogo className="w-20.5 lg:w-27.5" />
+      </span>
     </>
   );
 
@@ -126,7 +131,10 @@ export function Navbar({
           )}
           {(children || leftActions) && (
             <>
-              <span aria-hidden className="text-border hidden lg:block shrink-0">
+              <span
+                aria-hidden
+                className="text-border hidden lg:block shrink-0"
+              >
                 |
               </span>
               <div className="flex items-center gap-2.5 min-w-0">
@@ -291,7 +299,9 @@ export function Navbar({
 
             <div className="mx-6 h-px bg-border shrink-0" />
 
-            <div className="flex-1" />
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-6 py-4">
+              <MyActionItemsCollapse onNavigate={startCloseDrawer} />
+            </div>
 
             <div className="px-6 pb-8 shrink-0">
               <button
@@ -309,9 +319,129 @@ export function Navbar({
   );
 }
 
+function MyActionItemsCollapse({ onNavigate }: { onNavigate: () => void }) {
+  const { user } = useAuth();
+  const t = useTranslations("navbar");
+  const tBoard = useTranslations("board");
+  const [open, setOpen] = useState(false);
+  const { items, loading, loaded, load } = useMyActionItems(user?.uid);
+
+  const handleToggle = () => {
+    if (!open && !loaded) load();
+    setOpen((v) => !v);
+  };
+
+  const groups: {
+    status: "pending" | "done" | "keep";
+    label: string;
+    colorClass: string;
+    icon: React.ReactNode;
+  }[] = [
+    { status: "pending", label: tBoard("statusPending"), colorClass: "text-orange-600 dark:text-orange-400", icon: <CircleIcon size={12} /> },
+    { status: "done", label: tBoard("statusDone"), colorClass: "text-green-700 dark:text-green-400", icon: <CheckIcon size={12} /> },
+    { status: "keep", label: tBoard("statusKeep"), colorClass: "text-accent-violet", icon: <LoopIcon size={12} /> },
+  ];
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer py-1"
+      >
+        {t("myActionItems")}
+        <ChevronIcon open={open} />
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-3">
+          {loading ? (
+            <div className="space-y-2">
+              <div className="h-8 rounded bg-bg-elevated animate-pulse" />
+              <div className="h-8 rounded bg-bg-elevated animate-pulse" />
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-text-muted">{t("myActionItemsEmpty")}</p>
+          ) : (
+            groups.map(({ status, label, colorClass, icon }) => {
+              const groupItems = items.filter(
+                ({ card }) => (card.actionStatus ?? "pending") === status,
+              );
+              if (groupItems.length === 0) return null;
+
+              return (
+                <div key={status}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${colorClass}`}>
+                    {label}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {groupItems.map(({ card, roomId, roomName, roomStatus }) => (
+                      <li key={`${roomId}-${card.id}`}>
+                        <Link
+                          href={roomStatus === "ended" ? `/room/${roomId}/summary` : `/room/${roomId}`}
+                          onClick={onNavigate}
+                          className="flex items-start gap-1.5 px-1.5 py-1 -mx-1.5 rounded-md hover:bg-bg-elevated transition-colors"
+                        >
+                          <span className={`mt-0.5 shrink-0 ${colorClass}`}>{icon}</span>
+                          <span className="min-w-0">
+                            <span
+                              className={`block text-xs leading-snug truncate ${
+                                status === "done" ? "line-through text-text-muted" : "text-text-primary"
+                              }`}
+                            >
+                              {card.text}
+                            </span>
+                            <span className="block text-text-muted text-[10px] truncate">
+                              {roomName}
+                            </span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 function XIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   );
@@ -319,7 +449,17 @@ function XIcon() {
 
 function SignOutIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />

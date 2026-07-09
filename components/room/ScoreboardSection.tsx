@@ -62,64 +62,70 @@ export function ScoreboardSection({
         <p className="text-text-muted text-sm mt-4 pl-1">{t("scoreboardEmpty")}</p>
       ) : (
         <div className="mt-4 bg-bg-card border border-border rounded-lg overflow-hidden overflow-x-auto">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-x-4 px-5 py-2 border-b border-border min-w-max">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted w-7">#</span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-              {t("participants")}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-14">
-              {t("scoreboardCards")}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-16">
-              {t("scoreboardActions")}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-12">
-              {t("scoreboardLikes")}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-16">
-              {t("scoreboardComments")}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-accent-primary text-right w-14">
-              {t("scoreboardPoints")}
-            </span>
-          </div>
+          <table className="w-full min-w-max border-collapse">
+            <thead>
+              <tr className="border-b border-border divide-x divide-border/40">
+                <th className="text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted pl-5 pr-4 py-2 w-7">
+                  #
+                </th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted px-4 py-2">
+                  {t("participants")}
+                </th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted px-4 py-2 w-14">
+                  {t("scoreboardCards")}
+                </th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted px-4 py-2 w-16">
+                  {t("scoreboardActions")}
+                </th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted px-4 py-2 w-12">
+                  {t("scoreboardLikes")}
+                </th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted px-4 py-2 w-16">
+                  {t("scoreboardComments")}
+                </th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-widest text-accent-primary pl-4 pr-5 py-2 w-14">
+                  {t("scoreboardPoints")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {entries.map((entry) => {
+                const posStyle = POSITION_STYLES[entry.position];
+                return (
+                  <tr key={entry.userId} className="divide-x divide-border/40">
+                    <td className="pl-5 pr-4 py-3.5">
+                      <div className="w-7 flex justify-center">
+                        {posStyle ? (
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border ${posStyle}`}
+                          >
+                            {entry.position}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-text-muted font-medium">{entry.position}</span>
+                        )}
+                      </div>
+                    </td>
 
-          <div className="divide-y divide-border">
-            {entries.map((entry) => {
-              const posStyle = POSITION_STYLES[entry.position];
-              return (
-                <div
-                  key={entry.userId}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-x-4 px-5 py-3.5 min-w-max"
-                >
-                  <div className="w-7 flex justify-center">
-                    {posStyle ? (
-                      <span
-                        className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border ${posStyle}`}
-                      >
-                        {entry.position}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-text-muted font-medium">{entry.position}</span>
-                    )}
-                  </div>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Avatar photoURL={entry.userPhotoURL} name={entry.userName} size={28} />
+                        <span className="text-sm text-text-primary truncate">{entry.userName}</span>
+                      </div>
+                    </td>
 
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar photoURL={entry.userPhotoURL} name={entry.userName} size={28} />
-                    <span className="text-sm text-text-primary truncate">{entry.userName}</span>
-                  </div>
-
-                  <span className="text-sm text-text-muted text-right w-14">{entry.cardsCount}</span>
-                  <span className="text-sm text-text-muted text-right w-16">{entry.actionItemsCount}</span>
-                  <span className="text-sm text-text-muted text-right w-12">{entry.votesReceived}</span>
-                  <span className="text-sm text-text-muted text-right w-16">{entry.commentsCount}</span>
-                  <span className="text-sm font-semibold text-accent-primary text-right w-14">
-                    {entry.totalPoints % 1 === 0 ? entry.totalPoints : entry.totalPoints.toFixed(2)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <td className="text-sm text-text-muted text-right px-4 py-3.5 w-14">{entry.cardsCount}</td>
+                    <td className="text-sm text-text-muted text-right px-4 py-3.5 w-16">{entry.actionItemsCount}</td>
+                    <td className="text-sm text-text-muted text-right px-4 py-3.5 w-12">{entry.votesReceived}</td>
+                    <td className="text-sm text-text-muted text-right px-4 py-3.5 w-16">{entry.commentsCount}</td>
+                    <td className="text-sm font-semibold text-accent-primary text-right pl-4 pr-5 py-3.5 w-14">
+                      {entry.totalPoints % 1 === 0 ? entry.totalPoints : entry.totalPoints.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </section>

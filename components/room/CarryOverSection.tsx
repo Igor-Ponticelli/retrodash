@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Toggle } from "@/components/ui/Toggle";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Avatar } from "@/components/ui/Avatar";
 import type { CarryOverState } from "@/hooks/useCarryOver";
 import type { Room } from "@/types";
 
@@ -108,6 +109,18 @@ export function CarryOverSection({ carryOver, endedRooms, roomsLoading }: CarryO
                           )}
                           <span className="text-sm text-text-primary leading-snug">{item.text}</span>
                         </span>
+                        {item.assigneeId && (
+                          <span
+                            className="shrink-0"
+                            title={t("assignedTo", { name: item.assigneeName ?? "" })}
+                          >
+                            <Avatar
+                              photoURL={item.assigneePhotoURL}
+                              name={item.assigneeName ?? "?"}
+                              size={20}
+                            />
+                          </span>
+                        )}
                         {status === "keep" && (
                           <span className="shrink-0 inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-semibold bg-accent-violet/15 text-accent-violet">
                             <LoopIcon />
