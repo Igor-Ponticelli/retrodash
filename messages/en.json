@@ -330,12 +330,15 @@
     "scoreboardComments": "Comments",
     "scoreboardPoints": "Points",
     "scoreboardEmpty": "No contributions yet.",
-    "anonymous": "Anonymous"
+    "anonymous": "Anonymous",
+    "assignedTo": "Assigned to {name}"
   },
   "navbar": {
     "signOut": "Sign out",
     "feedback": "Feedback",
-    "myAccount": "My account"
+    "myAccount": "My account",
+    "myActionItems": "My action items",
+    "myActionItemsEmpty": "No action items assigned to you yet."
   },
   "language": {
     "label": "Language",
@@ -396,7 +399,8 @@
     "selectAll": "Select all",
     "selectedCount": "{selected} of {total} selected",
     "statusKeep": "Keep",
-    "fromCard": "From:"
+    "fromCard": "From:",
+    "assignedTo": "Assigned to {name}"
   },
   "board": {
     "actionItems": "Action Items",
@@ -430,7 +434,11 @@
     "improveWithAIHint": "Sends this card's text to Google Gemini.",
     "improveWithAIHintLink": "Learn more.",
     "fromCard": "From:",
-    "anonymous": "Anonymous"
+    "anonymous": "Anonymous",
+    "assign": "Assign",
+    "unassign": "Unassign",
+    "assignedTo": "Assigned to {name}",
+    "noParticipants": "No participants in this room yet."
   },
   "comments": {
     "title": "Comments",
