@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -11,12 +11,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
-import { getParticipant, joinRoom } from "@/lib/firestore";
+import { getParticipant, joinRoom, commentsQuery } from "@/lib/firestore";
 import {
   calculateRetroScoreboard,
   saveRetroScoreboard,
 } from "@/lib/scoreboard";
 import { ScoreboardSection } from "@/components/room/ScoreboardSection";
+import { CommentThread } from "@/components/board/CommentThread";
+import { Modal } from "@/components/ui/Modal";
 import { Navbar } from "@/components/ui/Navbar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -28,8 +30,9 @@ import {
   ThumbUpIcon,
   ExportIcon,
   PeopleIcon,
+  CommentIcon,
 } from "@/components/ui/Icons";
-import type { Card, Column, Room } from "@/types";
+import type { Card, CardComment, Column, Room } from "@/types";
 
 export function SummaryClient({ roomId }: { roomId: string }) {
   const { user, loading: authLoading } = useAuth();
@@ -83,6 +86,10 @@ function SummaryContent({ roomId }: { roomId: string }) {
   const t = useTranslations("summary");
   const locale = useLocale();
 
+  const [commentsByCardId, setCommentsByCardId] = useState<Record<string, CardComment[]>>({});
+  const [commentsByAuthorId, setCommentsByAuthorId] = useState<Record<string, number>>({});
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+
   const loading = roomLoading || cardsLoading;
 
   const actionItemsCol = columns.find((c) => c.isActionItems);
@@ -92,13 +99,42 @@ function SummaryContent({ roomId }: { roomId: string }) {
     publishedCards,
     actionItemsCol?.id,
     participants,
+    commentsByAuthorId,
   );
 
   useEffect(() => {
-    if (!room || participants.length === 0) return;
+    if (cardsLoading) return;
+    const cardsWithComments = cards.filter((c) => (c.commentsCount ?? 0) > 0);
+    let cancelled = false;
+    (async () => {
+      const snaps = await Promise.all(
+        cardsWithComments.map((c) => getDocs(commentsQuery(roomId, c.id))),
+      );
+      if (cancelled) return;
+      const byCardId: Record<string, CardComment[]> = {};
+      const byAuthorId: Record<string, number> = {};
+      snaps.forEach((snap, i) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as CardComment));
+        byCardId[cardsWithComments[i].id] = list;
+        list.forEach((c) => {
+          byAuthorId[c.authorId] = (byAuthorId[c.authorId] ?? 0) + 1;
+        });
+      });
+      setCommentsByCardId(byCardId);
+      setCommentsByAuthorId(byAuthorId);
+      setCommentsLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, cardsLoading]);
+
+  useEffect(() => {
+    if (!room || participants.length === 0 || !commentsLoaded) return;
     saveRetroScoreboard(roomId, scoreboard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, commentsLoaded]);
 
   if (loading) return <SummarySkeleton />;
   if (!room) return null;
@@ -230,6 +266,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
                   card={card}
                   isAnonymous={room.isAnonymous}
                   allCards={publishedCards}
+                  comments={commentsByCardId[card.id] ?? []}
                 />
               ))}
             </div>
@@ -257,6 +294,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
                     publishedCards.filter((c) => c.columnId === col.id),
                   )}
                   isAnonymous={room.isAnonymous}
+                  commentsByCardId={commentsByCardId}
                 />
               ))}
             </div>
@@ -299,10 +337,12 @@ function ActionItemRow({
   card,
   isAnonymous,
   allCards,
+  comments,
 }: {
   card: Card;
   isAnonymous: boolean;
   allCards: Card[];
+  comments: CardComment[];
 }) {
   const t = useTranslations("summary");
   const status: "pending" | "done" | "keep" =
@@ -378,12 +418,15 @@ function ActionItemRow({
           </div>
         )}
       </div>
-      {card.votedBy.length > 0 && (
-        <span className="shrink-0 flex items-center gap-1 text-xs text-text-muted">
-          <ThumbUpIcon />
-          {card.votedBy.length}
-        </span>
-      )}
+      <div className="shrink-0 flex flex-col items-end gap-1.5">
+        {card.votedBy.length > 0 && (
+          <span className="flex items-center gap-1 text-xs text-text-muted">
+            <ThumbUpIcon />
+            {card.votedBy.length}
+          </span>
+        )}
+        <CommentsToggle comments={comments} />
+      </div>
     </div>
   );
 }
@@ -392,10 +435,12 @@ function ColumnSummary({
   column,
   cards,
   isAnonymous,
+  commentsByCardId,
 }: {
   column: Column;
   cards: Card[];
   isAnonymous: boolean;
+  commentsByCardId: Record<string, CardComment[]>;
 }) {
   const t = useTranslations("summary");
   return (
@@ -414,7 +459,12 @@ function ColumnSummary({
       ) : (
         <div className="space-y-2">
           {cards.map((card) => (
-            <SummaryCard key={card.id} card={card} isAnonymous={isAnonymous} />
+            <SummaryCard
+              key={card.id}
+              card={card}
+              isAnonymous={isAnonymous}
+              comments={commentsByCardId[card.id] ?? []}
+            />
           ))}
         </div>
       )}
@@ -425,9 +475,11 @@ function ColumnSummary({
 function SummaryCard({
   card,
   isAnonymous,
+  comments,
 }: {
   card: Card;
   isAnonymous: boolean;
+  comments: CardComment[];
 }) {
   const t = useTranslations("summary");
   return (
@@ -452,14 +504,48 @@ function SummaryCard({
         ) : (
           <span />
         )}
-        {card.votedBy.length > 0 && (
-          <span className="flex items-center gap-1 text-xs text-text-muted">
-            <ThumbUpIcon />
-            {card.votedBy.length}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {card.votedBy.length > 0 && (
+            <span className="flex items-center gap-1 text-xs text-text-muted">
+              <ThumbUpIcon />
+              {card.votedBy.length}
+            </span>
+          )}
+          <CommentsToggle comments={comments} />
+        </div>
       </div>
     </div>
+  );
+}
+
+function CommentsToggle({ comments }: { comments: CardComment[] }) {
+  const [open, setOpen] = useState(false);
+  const t = useTranslations("comments");
+  const tSummary = useTranslations("summary");
+
+  if (comments.length === 0) return null;
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        aria-label={t("viewLabel")}
+        className="flex items-center gap-1 text-xs text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+      >
+        <CommentIcon size={12} />
+        {comments.length}
+      </button>
+      {open && (
+        <Modal title={t("title")} onClose={() => setOpen(false)} size="md">
+          <CommentThread
+            comments={comments}
+            isAnonymous={false}
+            anonymousLabel={tSummary("anonymous")}
+            emptyLabel={t("empty")}
+          />
+        </Modal>
+      )}
+    </>
   );
 }
 

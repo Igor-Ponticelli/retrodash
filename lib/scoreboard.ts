@@ -6,11 +6,13 @@ export const PARTICIPATION_POINTS = 1;
 export const CARD_POINTS = 1;
 export const ACTION_ITEM_POINTS = 0.5;
 export const VOTE_POINTS = 0.25;
+export const COMMENT_POINTS = 0.5;
 
 export function calculateRetroScoreboard(
   cards: Card[],
   actionItemsColumnId: string | undefined,
   participants: Participant[],
+  commentsByAuthorId: Record<string, number> = {},
 ): ScoreboardEntry[] {
   const published = cards.filter((c) => c.published !== false && c.authorName !== "" && !c.carriedItem);
 
@@ -19,7 +21,9 @@ export function calculateRetroScoreboard(
     const cardsCount = mine.filter((c) => c.columnId !== actionItemsColumnId).length;
     const actionItemsCount = mine.filter((c) => c.columnId === actionItemsColumnId).length;
     const votesReceived = mine.reduce((sum, c) => sum + (c.votedBy?.length ?? 0), 0);
-    const totalPoints = PARTICIPATION_POINTS + cardsCount * CARD_POINTS + actionItemsCount * ACTION_ITEM_POINTS + votesReceived * VOTE_POINTS;
+    const commentsCount = commentsByAuthorId[p.id] ?? 0;
+    const totalPoints = PARTICIPATION_POINTS + cardsCount * CARD_POINTS + actionItemsCount * ACTION_ITEM_POINTS
+      + votesReceived * VOTE_POINTS + commentsCount * COMMENT_POINTS;
     return {
       userId: p.id,
       userName: p.displayName,
@@ -27,6 +31,7 @@ export function calculateRetroScoreboard(
       cardsCount,
       actionItemsCount,
       votesReceived,
+      commentsCount,
       totalPoints,
       position: 0,
     };

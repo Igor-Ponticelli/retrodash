@@ -26,6 +26,15 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/rooms/$(roomId)/participants/$(request.auth.uid)).data.role == "facilitator";
     }
 
+    // Lets the author of a card delete comments left by other people when
+    // they delete their own card (cascade delete), without granting them
+    // any broader comment-moderation power.
+    function isCardAuthor(roomId, cardId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/rooms/$(roomId)/cards/$(cardId)) &&
+        get(/databases/$(database)/documents/rooms/$(roomId)/cards/$(cardId)).data.authorId == request.auth.uid;
+    }
+
     // ── Rooms ──────────────────────────────────────────────────────
 
     match /rooms/{roomId} {
@@ -121,11 +130,51 @@ service cloud.firestore {
             request.resource.data.votedBy.toSet().difference(resource.data.votedBy.toSet()).size() == 0 &&
             request.resource.data.votes == resource.data.votes - 1)
          ))
+        ||
+        // commentsCount bump, paired client-side with a comment create/delete
+        // in the same batch. Not cross-validated against the specific comment
+        // doc (the card's rule can't see which comment triggered it) — same
+        // trust level as the votes counter above: worst case is a wrong badge
+        // number, not a permission or data-visibility issue.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount']) &&
+         isParticipant(roomId) &&
+         (
+           request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1 ||
+           request.resource.data.commentsCount == resource.data.get('commentsCount', 0) - 1
+         ))
       );
 
       allow delete: if isFacilitator(roomId) ||
         (isParticipant(roomId) &&
          resource.data.authorId == request.auth.uid);
+    }
+
+    // ── Comments ───────────────────────────────────────────────────
+
+    match /rooms/{roomId}/cards/{cardId}/comments/{commentId} {
+      allow read: if isParticipant(roomId);
+
+      allow create: if isParticipant(roomId) &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.text is string &&
+        request.resource.data.text.size() > 0 &&
+        request.resource.data.text.size() <= 500;
+
+      // No update rule: comments are not editable.
+
+      allow delete: if isFacilitator(roomId) ||
+        resource.data.authorId == request.auth.uid ||
+        isCardAuthor(roomId, cardId);
+    }
+
+    // ── Scoreboard ─────────────────────────────────────────────────
+    // Recomputed and overwritten by whoever opens Summary (any participant,
+    // not just the facilitator) — derived from cards/participants data the
+    // same participants can already read, so no extra field validation.
+
+    match /rooms/{roomId}/scoreboard/{docId} {
+      allow read: if isParticipant(roomId);
+      allow write: if isParticipant(roomId);
     }
 
     // ── Participants ───────────────────────────────────────────────

@@ -327,6 +327,7 @@
     "scoreboardCards": "Cards",
     "scoreboardActions": "Ações",
     "scoreboardLikes": "Likes",
+    "scoreboardComments": "Comentários",
     "scoreboardPoints": "Pontos",
     "scoreboardEmpty": "Nenhuma contribuição ainda.",
     "anonymous": "Anônimo"
@@ -430,6 +431,14 @@
     "improveWithAIHintLink": "Saiba mais.",
     "fromCard": "De:",
     "anonymous": "Anônimo"
+  },
+  "comments": {
+    "title": "Comentários",
+    "placeholder": "Escreva um comentário…",
+    "send": "Enviar",
+    "empty": "Nenhum comentário ainda.",
+    "deleteLabel": "Apagar comentário",
+    "viewLabel": "Ver comentários"
   },
   "feedback": {
     "title": "Feedback e Sugestões",

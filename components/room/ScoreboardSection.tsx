@@ -61,8 +61,8 @@ export function ScoreboardSection({
       {entries.length === 0 ? (
         <p className="text-text-muted text-sm mt-4 pl-1">{t("scoreboardEmpty")}</p>
       ) : (
-        <div className="mt-4 bg-bg-card border border-border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-x-4 px-5 py-2 border-b border-border">
+        <div className="mt-4 bg-bg-card border border-border rounded-lg overflow-hidden overflow-x-auto">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-x-4 px-5 py-2 border-b border-border min-w-max">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted w-7">#</span>
             <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
               {t("participants")}
@@ -76,6 +76,9 @@ export function ScoreboardSection({
             <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-12">
               {t("scoreboardLikes")}
             </span>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted text-right w-16">
+              {t("scoreboardComments")}
+            </span>
             <span className="text-[11px] font-semibold uppercase tracking-widest text-accent-primary text-right w-14">
               {t("scoreboardPoints")}
             </span>
@@ -87,7 +90,7 @@ export function ScoreboardSection({
               return (
                 <div
                   key={entry.userId}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-x-4 px-5 py-3.5"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-x-4 px-5 py-3.5 min-w-max"
                 >
                   <div className="w-7 flex justify-center">
                     {posStyle ? (
@@ -109,6 +112,7 @@ export function ScoreboardSection({
                   <span className="text-sm text-text-muted text-right w-14">{entry.cardsCount}</span>
                   <span className="text-sm text-text-muted text-right w-16">{entry.actionItemsCount}</span>
                   <span className="text-sm text-text-muted text-right w-12">{entry.votesReceived}</span>
+                  <span className="text-sm text-text-muted text-right w-16">{entry.commentsCount}</span>
                   <span className="text-sm font-semibold text-accent-primary text-right w-14">
                     {entry.totalPoints % 1 === 0 ? entry.totalPoints : entry.totalPoints.toFixed(2)}
                   </span>

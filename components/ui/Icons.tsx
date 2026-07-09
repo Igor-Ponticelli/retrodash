@@ -249,6 +249,15 @@ export function MessageIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+export function CommentIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden>
+      <rect x="1.25" y="2" width="9.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.1" />
+      <path d="M4 8.5v2l2.2-2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function TrashIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
