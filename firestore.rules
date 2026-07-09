@@ -128,6 +128,16 @@ service cloud.firestore {
          resource.data.authorId == request.auth.uid);
     }
 
+    // ── Scoreboard ─────────────────────────────────────────────────
+    // Recomputed and overwritten by whoever opens Summary (any participant,
+    // not just the facilitator) — derived from cards/participants data the
+    // same participants can already read, so no extra field validation.
+
+    match /rooms/{roomId}/scoreboard/{docId} {
+      allow read: if isParticipant(roomId);
+      allow write: if isParticipant(roomId);
+    }
+
     // ── Participants ───────────────────────────────────────────────
 
     match /rooms/{roomId}/participants/{participantId} {
