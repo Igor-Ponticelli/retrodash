@@ -415,6 +415,18 @@ function ActionItemRow({
             ) : (
               <AnonymousChip label={t("anonymous")} />
             )}
+            {card.assigneeId && (
+              <span className="flex items-center gap-1.5 ml-3 pl-3 border-l border-border/60">
+                <Avatar
+                  photoURL={card.assigneePhotoURL}
+                  name={card.assigneeName ?? "?"}
+                  size={24}
+                />
+                <span className="text-text-muted text-xs">
+                  {t("assignedTo", { name: card.assigneeName ?? "" })}
+                </span>
+              </span>
+            )}
           </div>
         )}
       </div>
