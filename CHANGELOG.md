@@ -1,3 +1,9 @@
+## [1.7.2](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.1...v1.7.2) (2026-07-09)
+
+### Bug Fixes
+
+* stop screen flash when switching language ([#35](https://github.com/Igor-Ponticelli/retrodash/issues/35)) ([f17c74b](https://github.com/Igor-Ponticelli/retrodash/commit/f17c74b2d159d1eaa60db9ad975023697b3f7ee1))
+
 ## [1.7.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.0...v1.7.1) (2026-07-08)
 
 ### Bug Fixes
