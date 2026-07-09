@@ -11,6 +11,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   writeBatch,
   onSnapshot,
   serverTimestamp,
@@ -18,7 +19,7 @@ import {
   arrayRemove,
   increment,
 } from "firebase/firestore";
-import type { Card, FeedbackType } from "@/types";
+import type { Card, FeedbackType, Room } from "@/types";
 import { db } from "@/lib/firebase";
 
 // ── Room queries ───────────────────────────────────────────────
@@ -258,6 +259,55 @@ export async function updateCard(
   text: string
 ): Promise<void> {
   await updateDoc(doc(db, "rooms", roomId, "cards", cardId), { text });
+}
+
+export async function setCardAssignee(
+  roomId: string,
+  cardId: string,
+  assignee: { id: string; name: string; photoURL: string | null } | null
+): Promise<void> {
+  await updateDoc(doc(db, "rooms", roomId, "cards", cardId), {
+    assigneeId: assignee ? assignee.id : deleteField(),
+    assigneeName: assignee ? assignee.name : deleteField(),
+    assigneePhotoURL: assignee ? assignee.photoURL : deleteField(),
+  });
+}
+
+export interface MyActionItem {
+  card: Card;
+  roomId: string;
+  roomName: string;
+  roomStatus: Room["status"];
+}
+
+// One-shot (non-realtime) lookup used by the Navbar's "my action items" collapse,
+// which only fetches when opened rather than keeping a collectionGroup listener
+// alive on every authenticated page.
+export async function getMyActionItems(userId: string): Promise<MyActionItem[]> {
+  const cardsSnap = await getDocs(
+    query(collectionGroup(db, "cards"), where("assigneeId", "==", userId)),
+  );
+  const cardsWithRoomId = cardsSnap.docs.map((d) => ({
+    card: { id: d.id, ...d.data() } as Card,
+    roomId: d.ref.parent.parent!.id,
+  }));
+
+  const roomIds = [...new Set(cardsWithRoomId.map((c) => c.roomId))];
+  const roomEntries = await Promise.all(
+    roomIds.map(async (roomId) => {
+      const snap = await getDoc(doc(db, "rooms", roomId));
+      return [roomId, snap.exists() ? (snap.data() as Room) : null] as const;
+    }),
+  );
+  const roomsById = new Map(roomEntries);
+
+  return cardsWithRoomId
+    .map(({ card, roomId }): MyActionItem | null => {
+      const room = roomsById.get(roomId);
+      if (!room) return null;
+      return { card, roomId, roomName: room.name, roomStatus: room.status };
+    })
+    .filter((i): i is MyActionItem => i !== null);
 }
 
 export async function deleteCard(roomId: string, cardId: string): Promise<void> {
