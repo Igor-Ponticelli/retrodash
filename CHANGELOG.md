@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.2...v1.8.0) (2026-07-09)
+
+### Features
+
+* add comments to cards and action items ([#36](https://github.com/Igor-Ponticelli/retrodash/issues/36)) ([8a5029c](https://github.com/Igor-Ponticelli/retrodash/commit/8a5029c048da0aa81343a1fb9645b869525e54e3))
+
 ## [1.7.2](https://github.com/Igor-Ponticelli/retrodash/compare/v1.7.1...v1.7.2) (2026-07-09)
 
 ### Bug Fixes
