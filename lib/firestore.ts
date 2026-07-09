@@ -261,7 +261,13 @@ export async function updateCard(
 }
 
 export async function deleteCard(roomId: string, cardId: string): Promise<void> {
-  await deleteDoc(doc(db, "rooms", roomId, "cards", cardId));
+  const commentsSnap = await getDocs(
+    collection(db, "rooms", roomId, "cards", cardId, "comments"),
+  );
+  const batch = writeBatch(db);
+  commentsSnap.docs.forEach((d) => batch.delete(d.ref));
+  batch.delete(doc(db, "rooms", roomId, "cards", cardId));
+  await batch.commit();
 }
 
 export async function toggleVote(
@@ -287,10 +293,65 @@ export async function deleteRoom(roomId: string): Promise<void> {
     getDocs(collection(db, "rooms", roomId, "columns")),
     getDocs(collection(db, "rooms", roomId, "cards")),
   ]);
-  [...participantsSnap.docs, ...columnsSnap.docs, ...cardsSnap.docs].forEach((d) =>
-    batch.delete(d.ref)
+  const commentsSnaps = await Promise.all(
+    cardsSnap.docs.map((c) =>
+      getDocs(collection(db, "rooms", roomId, "cards", c.id, "comments")),
+    ),
   );
+  [
+    ...participantsSnap.docs,
+    ...columnsSnap.docs,
+    ...cardsSnap.docs,
+    ...commentsSnaps.flatMap((s) => s.docs),
+  ].forEach((d) => batch.delete(d.ref));
   batch.delete(doc(db, "rooms", roomId));
+  await batch.commit();
+}
+
+// ── Comment mutations ──────────────────────────────────────────
+
+export function commentsQuery(roomId: string, cardId: string) {
+  return query(
+    collection(db, "rooms", roomId, "cards", cardId, "comments"),
+    orderBy("createdAt", "asc"),
+  );
+}
+
+export async function addComment(
+  roomId: string,
+  cardId: string,
+  {
+    authorId,
+    authorName,
+    authorPhotoURL = null,
+    text,
+  }: { authorId: string; authorName: string; authorPhotoURL?: string | null; text: string },
+): Promise<void> {
+  const batch = writeBatch(db);
+  const commentRef = doc(collection(db, "rooms", roomId, "cards", cardId, "comments"));
+  batch.set(commentRef, {
+    authorId,
+    authorName,
+    authorPhotoURL,
+    text,
+    createdAt: serverTimestamp(),
+  });
+  batch.update(doc(db, "rooms", roomId, "cards", cardId), {
+    commentsCount: increment(1),
+  });
+  await batch.commit();
+}
+
+export async function deleteComment(
+  roomId: string,
+  cardId: string,
+  commentId: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "rooms", roomId, "cards", cardId, "comments", commentId));
+  batch.update(doc(db, "rooms", roomId, "cards", cardId), {
+    commentsCount: increment(-1),
+  });
   await batch.commit();
 }
 

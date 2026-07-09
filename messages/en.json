@@ -431,6 +431,14 @@
     "fromCard": "From:",
     "anonymous": "Anonymous"
   },
+  "comments": {
+    "title": "Comments",
+    "placeholder": "Write a comment…",
+    "send": "Send",
+    "empty": "No comments yet.",
+    "deleteLabel": "Delete comment",
+    "viewLabel": "View comments"
+  },
   "feedback": {
     "title": "Feedback & Suggestions",
     "subtitle": "Have a bug to report or an idea to share? We'd love to hear from you.",

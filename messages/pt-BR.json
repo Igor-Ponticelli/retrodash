@@ -431,6 +431,14 @@
     "fromCard": "De:",
     "anonymous": "Anônimo"
   },
+  "comments": {
+    "title": "Comentários",
+    "placeholder": "Escreva um comentário…",
+    "send": "Enviar",
+    "empty": "Nenhum comentário ainda.",
+    "deleteLabel": "Apagar comentário",
+    "viewLabel": "Ver comentários"
+  },
   "feedback": {
     "title": "Feedback e Sugestões",
     "subtitle": "Encontrou um bug ou tem uma ideia? Adoraríamos ouvir você.",

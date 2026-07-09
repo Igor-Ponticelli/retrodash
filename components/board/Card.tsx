@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
+import { CardComments } from "@/components/board/CardComments";
 import {
   updateCard,
   deleteCard,
@@ -380,21 +381,33 @@ export function CardItem({
             )
           )}
 
-          {isDraft && isOwnCard ? (
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-                {t("draft")}
-              </span>
-              <button
-                onClick={handlePublish}
-                disabled={publishing || !isRetroLive || card.text.length > MAX_CHARS}
-                className="inline-flex items-center gap-1 px-2 h-6 rounded text-xs font-semibold bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {publishing ? t("publishing") : t("publish")}
-              </button>
-            </div>
-          ) : !isActionItem ? (
-            <div className={isAnonymous ? "ml-auto" : ""}>
+          <div className={`flex items-center gap-2 ${isAnonymous ? "ml-auto" : ""}`}>
+            {!isDraft && (
+              <CardComments
+                roomId={roomId}
+                card={card}
+                userId={userId}
+                currentUserName={currentUserName}
+                currentUserPhotoURL={currentUserPhotoURL}
+                isAnonymous={isAnonymous}
+                isFacilitator={isFacilitator}
+              />
+            )}
+
+            {isDraft && isOwnCard ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                  {t("draft")}
+                </span>
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing || !isRetroLive || card.text.length > MAX_CHARS}
+                  className="inline-flex items-center gap-1 px-2 h-6 rounded text-xs font-semibold bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {publishing ? t("publishing") : t("publish")}
+                </button>
+              </div>
+            ) : !isActionItem ? (
               <button
                 onClick={handleVote}
                 disabled={!canVote}
@@ -404,16 +417,14 @@ export function CardItem({
                 <ThumbUpIcon filled={hasVoted} />
                 {card.votedBy.length > 0 && <span>{card.votedBy.length}</span>}
               </button>
-            </div>
-          ) : (
-            <div className={isAnonymous ? "ml-auto" : ""}>
+            ) : (
               <ActionStatusSegment
                 status={actionStatus}
                 onChange={(s) => setActionStatus(roomId, card.id, s)}
                 t={t}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

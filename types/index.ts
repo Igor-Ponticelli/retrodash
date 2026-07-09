@@ -33,8 +33,18 @@ export interface Card {
   linkedCardId?: string;
   linkedCardText?: string;
   carriedItem?: boolean;
+  commentsCount?: number;
   createdAt: Timestamp;
   publishedAt?: Timestamp;
+}
+
+export interface CardComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPhotoURL?: string | null;
+  text: string;
+  createdAt: Timestamp;
 }
 
 export interface Participant {
