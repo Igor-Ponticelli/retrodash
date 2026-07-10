@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
+import { createRemountCache } from "@/lib/remountCache";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -34,16 +35,20 @@ interface RoomClientProps {
   roomId: string;
 }
 
+const gateCache = createRemountCache<true>(); // stores only the "ready" outcome
+
 export function RoomClient({ roomId }: RoomClientProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const gateKey = user ? `${roomId}:${user.uid}` : null;
   const [gate, setGate] = useState<"checking" | "ready" | "needs-password">(
-    "checking",
+    () => (gateKey !== null && gateCache.has(gateKey) ? "ready" : "checking"),
   );
   const [roomData, setRoomData] = useState<Room | null>(null);
 
   useEffect(() => {
     if (authLoading || !user) return;
+    const key = `${roomId}:${user.uid}`;
     (async () => {
       const snap = await getDoc(doc(db, "rooms", roomId));
       if (!snap.exists()) {
@@ -55,6 +60,7 @@ export function RoomClient({ roomId }: RoomClientProps) {
 
       const participant = await getParticipant(roomId, user.uid);
       if (participant) {
+        gateCache.set(key, true);
         setGate("ready");
         return;
       }
@@ -66,6 +72,7 @@ export function RoomClient({ roomId }: RoomClientProps) {
           user.displayName ?? "Member",
           user.photoURL ?? null,
         );
+        gateCache.set(key, true);
         setGate("ready");
         return;
       }
