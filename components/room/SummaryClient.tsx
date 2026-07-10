@@ -11,7 +11,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
-import { getParticipant, joinRoom, commentsQuery } from "@/lib/firestore";
+import {
+  getParticipant,
+  joinRoom,
+  commentsQuery,
+  getCarriedToRoomLinks,
+  getOriginRoomInfo,
+  type ChainLink,
+} from "@/lib/firestore";
 import {
   calculateRetroScoreboard,
   saveRetroScoreboard,
@@ -89,6 +96,8 @@ function SummaryContent({ roomId }: { roomId: string }) {
   const [commentsByCardId, setCommentsByCardId] = useState<Record<string, CardComment[]>>({});
   const [commentsByAuthorId, setCommentsByAuthorId] = useState<Record<string, number>>({});
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [chainLinksByCardId, setChainLinksByCardId] = useState<Record<string, ChainLink[]>>({});
+  const [originInfoByCardId, setOriginInfoByCardId] = useState<Record<string, { roomId: string; roomName: string; roomStatus: Room["status"] } | null>>({});
 
   const loading = roomLoading || cardsLoading;
 
@@ -135,6 +144,26 @@ function SummaryContent({ roomId }: { roomId: string }) {
     saveRetroScoreboard(roomId, scoreboard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, commentsLoaded]);
+
+  useEffect(() => {
+    if (cardsLoading) return;
+    let cancelled = false;
+    (async () => {
+      const originCards = cards.filter((c) => (c.carriedToRooms?.length ?? 0) > 0);
+      const carriedWithOrigin = cards.filter((c) => c.carriedItem && c.originRoomId && c.originCardId);
+      const [chainEntries, originEntries] = await Promise.all([
+        Promise.all(originCards.map(async (c) => [c.id, await getCarriedToRoomLinks(c.carriedToRooms!)] as const)),
+        Promise.all(carriedWithOrigin.map(async (c) => [c.id, await getOriginRoomInfo(c.originRoomId!)] as const)),
+      ]);
+      if (cancelled) return;
+      setChainLinksByCardId(Object.fromEntries(chainEntries));
+      setOriginInfoByCardId(Object.fromEntries(originEntries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, cardsLoading]);
 
   if (loading) return <SummarySkeleton />;
   if (!room) return null;
@@ -267,6 +296,8 @@ function SummaryContent({ roomId }: { roomId: string }) {
                   isAnonymous={room.isAnonymous}
                   allCards={publishedCards}
                   comments={commentsByCardId[card.id] ?? []}
+                  chainLinks={chainLinksByCardId[card.id]}
+                  originInfo={originInfoByCardId[card.id]}
                 />
               ))}
             </div>
@@ -338,11 +369,15 @@ function ActionItemRow({
   isAnonymous,
   allCards,
   comments,
+  chainLinks,
+  originInfo,
 }: {
   card: Card;
   isAnonymous: boolean;
   allCards: Card[];
   comments: CardComment[];
+  chainLinks?: ChainLink[];
+  originInfo?: { roomId: string; roomName: string; roomStatus: Room["status"] } | null;
 }) {
   const t = useTranslations("summary");
   const status: "pending" | "done" | "keep" =
@@ -399,6 +434,11 @@ function ActionItemRow({
             {t("keepGoing")}
           </span>
         )}
+        {(card.returnCount ?? 0) >= 1 && (
+          <span className="inline-block mt-1 text-xs text-text-muted bg-bg-elevated px-2 py-0.5 rounded-full">
+            {t("returnedCount", { count: card.returnCount ?? 0 })}
+          </span>
+        )}
         {!isAnonymous && (
           <div className="flex items-center gap-1.5 mt-1.5">
             {card.authorName ? (
@@ -428,6 +468,38 @@ function ActionItemRow({
               </span>
             )}
           </div>
+        )}
+        {originInfo && (
+          <p className="text-[11px] text-text-muted mt-1.5">
+            {t("originallyFrom")}{" "}
+            <Link
+              href={originInfo.roomStatus === "ended" ? `/room/${originInfo.roomId}/summary` : `/room/${originInfo.roomId}`}
+              className="text-accent-primary hover:underline"
+            >
+              {originInfo.roomName}
+            </Link>
+          </p>
+        )}
+        {chainLinks && chainLinks.length > 0 && (
+          <p className="text-[11px] text-text-muted mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="shrink-0">{t("carriedToRooms")}</span>
+            {chainLinks.map((link) => (
+              <Link
+                key={`${link.roomId}-${link.cardId}`}
+                href={link.roomStatus === "ended" ? `/room/${link.roomId}/summary` : `/room/${link.roomId}`}
+                className="inline-flex items-center gap-1 text-accent-primary hover:underline"
+              >
+                {link.cardStatus === "done" ? (
+                  <CheckIcon size={10} />
+                ) : link.cardStatus === "keep" ? (
+                  <LoopIcon size={10} />
+                ) : link.cardStatus === "pending" ? (
+                  <CircleIcon size={10} />
+                ) : null}
+                {link.roomName}
+              </Link>
+            ))}
+          </p>
         )}
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1.5">

@@ -331,7 +331,10 @@
     "scoreboardPoints": "Pontos",
     "scoreboardEmpty": "Nenhuma contribuição ainda.",
     "anonymous": "Anônimo",
-    "assignedTo": "Responsável: {name}"
+    "assignedTo": "Responsável: {name}",
+    "returnedCount": "Retornou {count}×",
+    "carriedToRooms": "Levado para",
+    "originallyFrom": "Originalmente de"
   },
   "navbar": {
     "signOut": "Sair",
@@ -441,7 +444,13 @@
     "assign": "Atribuir",
     "unassign": "Remover responsável",
     "assignedTo": "Responsável: {name}",
-    "noParticipants": "Nenhum participante nesta sala ainda."
+    "noParticipants": "Nenhum participante nesta sala ainda.",
+    "linkToCard": "Vincular a um card",
+    "clickACardToLink": "Clique em um card para vincular",
+    "changeLink": "Trocar vínculo",
+    "removeLink": "Remover vínculo",
+    "linkPickerBannerHint": "Clique em um card do board para vinculá-lo, ou pressione Esc para cancelar.",
+    "returnedCount": "Retornou {count}×"
   },
   "comments": {
     "title": "Comentários",

@@ -16,6 +16,7 @@ import {
   subscribeToParticipant,
   joinRoom,
   getParticipant,
+  setCardLink,
 } from "@/lib/firestore";
 import { Board } from "@/components/board/Board";
 import { JoinRoom } from "@/components/room/JoinRoom";
@@ -27,7 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PeopleIcon, LinkIcon } from "@/components/ui/Icons";
-import type { Room } from "@/types";
+import type { Room, Card } from "@/types";
 
 interface RoomClientProps {
   roomId: string;
@@ -114,8 +115,40 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterAuthorId, setFilterAuthorId] = useState<string | null>(null);
+  const [linkingMode, setLinkingMode] = useState<
+    { kind: "composer" } | { kind: "card"; cardId: string } | null
+  >(null);
+  const [pendingLinkTarget, setPendingLinkTarget] = useState<{ id: string; text: string } | null>(null);
   const { participants } = useParticipants(roomId);
   const wasParticipantRef = useRef(false);
+
+  const linkingActive = linkingMode !== null;
+  const linkingSourceCardId = linkingMode?.kind === "card" ? linkingMode.cardId : null;
+
+  const handleStartLinking = () => setLinkingMode({ kind: "composer" });
+  const handleStartLinkingCard = (cardId: string) => setLinkingMode({ kind: "card", cardId });
+  const handleCancelLinking = () => {
+    setLinkingMode(null);
+    setPendingLinkTarget(null);
+  };
+  const handlePickLinkTarget = (card: Card) => {
+    if (!linkingMode) return;
+    if (linkingMode.kind === "composer") {
+      setPendingLinkTarget({ id: card.id, text: card.text });
+    } else {
+      setCardLink(roomId, linkingMode.cardId, { id: card.id, text: card.text });
+    }
+    setLinkingMode(null);
+  };
+
+  useEffect(() => {
+    if (!linkingActive) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLinkingMode(null);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [linkingActive]);
 
   useEffect(() => {
     return subscribeToParticipant(roomId, userId, (exists) => {
@@ -224,6 +257,13 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
           isRetroLive={room.status === "active"}
           filterAuthorId={filterAuthorId}
           participants={participants}
+          linkingActive={linkingActive}
+          pendingLinkTarget={pendingLinkTarget}
+          linkingSourceCardId={linkingSourceCardId}
+          onStartLinking={handleStartLinking}
+          onStartLinkingCard={handleStartLinkingCard}
+          onCancelLinking={handleCancelLinking}
+          onPickLinkTarget={handlePickLinkTarget}
         />
       </div>
 
