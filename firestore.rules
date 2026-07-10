@@ -82,7 +82,13 @@ service cloud.firestore {
 
       allow create: if
         (isParticipant(roomId) || isFacilitatorAfter(roomId)) &&
-        request.resource.data.authorId == request.auth.uid &&
+        (
+          request.resource.data.authorId == request.auth.uid ||
+          // Carry-over writes the TRUE original author, who is often not
+          // the person creating this new room. Scoped to the same trust
+          // boundary already used for published == true below.
+          (isFacilitatorAfter(roomId) && request.resource.data.carriedItem == true)
+        ) &&
         request.resource.data.votes == 0 &&
         request.resource.data.votedBy == [] &&
         (
@@ -91,11 +97,21 @@ service cloud.firestore {
         ) &&
         request.resource.data.text is string &&
         request.resource.data.text.size() > 0 &&
-        request.resource.data.text.size() <= 2000;
+        request.resource.data.text.size() <= 2000 &&
+        (
+          // Chain-tracking fields are only ever legitimately written by the
+          // trusted createRoom() carry-over path, never by a regular
+          // participant's addCard().
+          isFacilitatorAfter(roomId) ||
+          !request.resource.data.keys().hasAny(['returnCount', 'originRoomId', 'originCardId', 'carriedToRooms'])
+        );
 
       allow update: if isParticipant(roomId) && (
-        // Author edits own card text (published or draft)
+        // Author edits own card text (published or draft) — locked once
+        // this card was carried over from a past room (carriedItem: true),
+        // permanently, regardless of who the recorded authorId is.
         (resource.data.authorId == request.auth.uid &&
+         resource.data.get('carriedItem', false) != true &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text']) &&
          request.resource.data.text is string &&
          request.resource.data.text.size() > 0 &&
@@ -124,7 +140,10 @@ service cloud.firestore {
         // must change together (exact set, not hasOnly's subset) so a partial
         // update can't change assigneeId while leaving a stale assigneeName/
         // assigneePhotoURL from a previous assignee mismatched to the new id.
+        // Locked once this card was carried over from a past room, same as
+        // the text-edit branch above.
         (resource.data.published == true &&
+         resource.data.get('carriedItem', false) != true &&
          resource.data.actionStatus is string &&
          request.resource.data.diff(resource.data).affectedKeys() == ['assigneeId', 'assigneeName', 'assigneePhotoURL'].toSet() &&
          (
@@ -139,6 +158,26 @@ service cloud.firestore {
             request.resource.data.assigneeName.size() <= 200 &&
             (request.resource.data.assigneePhotoURL is string || request.resource.data.assigneePhotoURL == null) &&
             (request.resource.data.assigneePhotoURL == null || request.resource.data.assigneePhotoURL.size() <= 2000))
+         ))
+        ||
+        // Any participant sets or clears the linked source card on a
+        // published action item, after creation (retroactive linking).
+        // linkedCardId must reference an existing card in this room.
+        // Locked once carried over, same as text/assignee above.
+        (resource.data.published == true &&
+         resource.data.get('carriedItem', false) != true &&
+         resource.data.actionStatus is string &&
+         request.resource.data.diff(resource.data).affectedKeys() == ['linkedCardId', 'linkedCardText'].toSet() &&
+         (
+           // Clearing: both fields removed
+           (!request.resource.data.keys().hasAny(['linkedCardId', 'linkedCardText']))
+           ||
+           // Setting: linkedCardId must reference an existing card in this room
+           (request.resource.data.linkedCardId is string &&
+            exists(/databases/$(database)/documents/rooms/$(roomId)/cards/$(request.resource.data.linkedCardId)) &&
+            request.resource.data.linkedCardText is string &&
+            request.resource.data.linkedCardText.size() > 0 &&
+            request.resource.data.linkedCardText.size() <= 2000)
          ))
         ||
         // Any participant votes — set-based validation prevents forged vote counts
@@ -166,10 +205,25 @@ service cloud.firestore {
            request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1 ||
            request.resource.data.commentsCount == resource.data.get('commentsCount', 0) - 1
          ))
+        ||
+        // Facilitator of THIS card's own room appends to its carriedToRooms
+        // chain-tracking list when it (or a newer copy of it) is carried
+        // into another room the same user also facilitates.
+        // isFacilitator(roomId) here binds to this card's OWN room path
+        // segment (the origin room), so it authorizes this write regardless
+        // of which other room is currently being created elsewhere — safe
+        // because a carry-over chain is always owned end-to-end by the same
+        // single user today (carry-over sources are restricted to the
+        // acting user's own ended rooms, and ownerId is immutable).
+        (isFacilitator(roomId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['carriedToRooms']) &&
+         request.resource.data.carriedToRooms is list &&
+         request.resource.data.carriedToRooms.size() >= resource.data.get('carriedToRooms', []).size())
       );
 
       allow delete: if isFacilitator(roomId) ||
         (isParticipant(roomId) &&
+         resource.data.get('carriedItem', false) != true &&
          resource.data.authorId == request.auth.uid);
     }
 
