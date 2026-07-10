@@ -1,3 +1,9 @@
+## [1.12.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.11.0...v1.12.0) (2026-07-10)
+
+### Features
+
+* view who liked a card ([#40](https://github.com/Igor-Ponticelli/retrodash/issues/40)) ([3c7ead4](https://github.com/Igor-Ponticelli/retrodash/commit/3c7ead4e2e2d97f29cdd2e105379454bee5ff4ae))
+
 ## [1.11.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.10.0...v1.11.0) (2026-07-10)
 
 ### Features
