@@ -36,6 +36,10 @@ export interface Card {
   linkedCardId?: string;
   linkedCardText?: string;
   carriedItem?: boolean;
+  returnCount?: number;
+  originRoomId?: string;
+  originCardId?: string;
+  carriedToRooms?: { roomId: string; cardId: string }[];
   commentsCount?: number;
   createdAt: Timestamp;
   publishedAt?: Timestamp;
