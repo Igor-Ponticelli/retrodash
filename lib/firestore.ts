@@ -108,7 +108,20 @@ export async function createRoom({
   isAnonymous: boolean;
   columnTitles: string[];
   actionItemsTitle: string;
-  initialActionItems?: { text: string; actionStatus: "pending" | "keep"; linkedCardText?: string; authorName: string; authorPhotoURL: string | null }[];
+  initialActionItems?: {
+    text: string;
+    actionStatus: "pending" | "keep";
+    linkedCardText?: string;
+    authorId: string;
+    authorName: string;
+    authorPhotoURL: string | null;
+    assigneeId?: string;
+    assigneeName?: string;
+    assigneePhotoURL?: string | null;
+    originRoomId: string;
+    originCardId: string;
+    returnCount: number;
+  }[];
 }): Promise<string> {
   const batch = writeBatch(db);
   const roomRef = doc(collection(db, "rooms"));
@@ -144,25 +157,54 @@ export async function createRoom({
     role: "facilitator",
   });
 
-  initialActionItems.forEach(({ text, actionStatus, linkedCardText, authorName, authorPhotoURL }) => {
+  const pendingChainWrites: { originRoomId: string; originCardId: string; roomId: string; cardId: string }[] = [];
+
+  initialActionItems.forEach((item) => {
     const cardRef = doc(collection(db, "rooms", roomRef.id, "cards"));
     batch.set(cardRef, {
       columnId: actionItemsRef.id,
-      text,
-      authorId: ownerId,
-      authorName: isAnonymous ? "" : authorName,
-      authorPhotoURL: isAnonymous ? null : authorPhotoURL,
+      text: item.text,
+      authorId: item.authorId,
+      authorName: isAnonymous ? "" : item.authorName,
+      authorPhotoURL: isAnonymous ? null : item.authorPhotoURL,
       votes: 0,
       votedBy: [],
       published: true,
       carriedItem: true,
-      actionStatus,
-      ...(linkedCardText && { linkedCardText }),
+      actionStatus: item.actionStatus,
+      returnCount: item.returnCount,
+      originRoomId: item.originRoomId,
+      originCardId: item.originCardId,
+      ...(item.linkedCardText && { linkedCardText: item.linkedCardText }),
+      ...(item.assigneeId && {
+        assigneeId: item.assigneeId,
+        assigneeName: isAnonymous ? "" : item.assigneeName,
+        assigneePhotoURL: isAnonymous ? null : (item.assigneePhotoURL ?? null),
+      }),
       createdAt: serverTimestamp(),
+    });
+    pendingChainWrites.push({
+      originRoomId: item.originRoomId,
+      originCardId: item.originCardId,
+      roomId: roomRef.id,
+      cardId: cardRef.id,
     });
   });
 
   await batch.commit();
+
+  // Best-effort bookkeeping, intentionally decoupled from the batch above:
+  // records this hop on the true origin card's chain list. If an ancestor
+  // card was since deleted this silently no-ops for that one hop instead
+  // of failing the whole room creation.
+  void Promise.allSettled(
+    pendingChainWrites.map(({ originRoomId, originCardId, roomId, cardId }) =>
+      updateDoc(doc(db, "rooms", originRoomId, "cards", originCardId), {
+        carriedToRooms: arrayUnion({ roomId, cardId }),
+      }),
+    ),
+  );
+
   return roomRef.id;
 }
 
@@ -253,6 +295,17 @@ export async function setActionStatus(
   await updateDoc(doc(db, "rooms", roomId, "cards", cardId), { actionStatus: status });
 }
 
+export async function setCardLink(
+  roomId: string,
+  cardId: string,
+  link: { id: string; text: string } | null
+): Promise<void> {
+  await updateDoc(doc(db, "rooms", roomId, "cards", cardId), {
+    linkedCardId: link ? link.id : deleteField(),
+    linkedCardText: link ? link.text : deleteField(),
+  });
+}
+
 export async function updateCard(
   roomId: string,
   cardId: string,
@@ -292,7 +345,21 @@ export async function getMyActionItems(userId: string): Promise<MyActionItem[]> 
     roomId: d.ref.parent.parent!.id,
   }));
 
-  const roomIds = [...new Set(cardsWithRoomId.map((c) => c.roomId))];
+  // Dedup by chain identity (originRoomId+originCardId, or the card's own
+  // room+id when it IS the origin) and keep only the most recently created
+  // card per chain, so a chain the user is assigned to at multiple hops
+  // shows up once, with its latest status.
+  const groups = new Map<string, { card: Card; roomId: string }>();
+  for (const entry of cardsWithRoomId) {
+    const key = `${entry.card.originRoomId ?? entry.roomId}:${entry.card.originCardId ?? entry.card.id}`;
+    const existing = groups.get(key);
+    if (!existing || (entry.card.createdAt?.seconds ?? 0) > (existing.card.createdAt?.seconds ?? 0)) {
+      groups.set(key, entry);
+    }
+  }
+  const latestPerChain = [...groups.values()];
+
+  const roomIds = [...new Set(latestPerChain.map((c) => c.roomId))];
   const roomEntries = await Promise.all(
     roomIds.map(async (roomId) => {
       const snap = await getDoc(doc(db, "rooms", roomId));
@@ -301,13 +368,59 @@ export async function getMyActionItems(userId: string): Promise<MyActionItem[]> 
   );
   const roomsById = new Map(roomEntries);
 
-  return cardsWithRoomId
+  return latestPerChain
     .map(({ card, roomId }): MyActionItem | null => {
       const room = roomsById.get(roomId);
       if (!room) return null;
       return { card, roomId, roomName: room.name, roomStatus: room.status };
     })
     .filter((i): i is MyActionItem => i !== null);
+}
+
+export interface ChainLink {
+  roomId: string;
+  roomName: string;
+  roomStatus: Room["status"];
+  cardId: string;
+  cardStatus: "pending" | "done" | "keep" | null;
+}
+
+// One-shot lookup for the origin card's own "carried to" list, used by the
+// Summary page. Room-level existence gates whether the link is shown at
+// all; card-level existence only gates the frozen-status chip next to it.
+export async function getCarriedToRoomLinks(
+  chain: { roomId: string; cardId: string }[],
+): Promise<ChainLink[]> {
+  const entries = await Promise.all(
+    chain.map(async ({ roomId, cardId }) => {
+      const [roomSnap, cardSnap] = await Promise.all([
+        getDoc(doc(db, "rooms", roomId)),
+        getDoc(doc(db, "rooms", roomId, "cards", cardId)),
+      ]);
+      if (!roomSnap.exists()) return null;
+      const room = roomSnap.data() as Room;
+      const card = cardSnap.exists() ? (cardSnap.data() as Card) : null;
+      return {
+        roomId,
+        cardId,
+        roomName: room.name,
+        roomStatus: room.status,
+        cardStatus: card ? (card.actionStatus ?? (card.done ? "done" : "pending")) : null,
+      } satisfies ChainLink;
+    }),
+  );
+  return entries.filter((e): e is ChainLink => e !== null);
+}
+
+// One-shot lookup for the "originally from Room Z" back-link. Only the
+// origin ROOM needs to still exist for this to render.
+export async function getOriginRoomInfo(
+  originRoomId: string,
+): Promise<{ roomId: string; roomName: string; roomStatus: Room["status"] } | null> {
+  const snap = await getDoc(doc(db, "rooms", originRoomId));
+  if (!snap.exists()) return null;
+  const room = snap.data() as Room;
+  return { roomId: originRoomId, roomName: room.name, roomStatus: room.status };
 }
 
 export async function deleteCard(roomId: string, cardId: string): Promise<void> {
