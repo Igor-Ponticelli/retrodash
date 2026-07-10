@@ -1,3 +1,9 @@
+## [1.13.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.12.0...v1.13.0) (2026-07-10)
+
+### Features
+
+* new visual for RetroDash ([#41](https://github.com/Igor-Ponticelli/retrodash/issues/41)) ([4de09e5](https://github.com/Igor-Ponticelli/retrodash/commit/4de09e5a0c33bb6a59b434fd6ea291e65a75b9b0))
+
 ## [1.12.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.11.0...v1.12.0) (2026-07-10)
 
 ### Features
