@@ -25,6 +25,7 @@ import {
 } from "@/lib/scoreboard";
 import { ScoreboardSection } from "@/components/room/ScoreboardSection";
 import { CommentThread } from "@/components/board/CommentThread";
+import { VotersBadge } from "@/components/board/CardVoters";
 import { Modal } from "@/components/ui/Modal";
 import { Navbar } from "@/components/ui/Navbar";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -39,7 +40,7 @@ import {
   PeopleIcon,
   CommentIcon,
 } from "@/components/ui/Icons";
-import type { Card, CardComment, Column, Room } from "@/types";
+import type { Card, CardComment, Column, Participant, Room } from "@/types";
 
 export function SummaryClient({ roomId }: { roomId: string }) {
   const { user, loading: authLoading } = useAuth();
@@ -87,6 +88,7 @@ export function SummaryClient({ roomId }: { roomId: string }) {
 }
 
 function SummaryContent({ roomId }: { roomId: string }) {
+  const { user } = useAuth();
   const { room, columns, loading: roomLoading } = useRoom(roomId);
   const { cards, loading: cardsLoading } = useCards(roomId);
   const { participants } = useParticipants(roomId);
@@ -298,6 +300,8 @@ function SummaryContent({ roomId }: { roomId: string }) {
                   comments={commentsByCardId[card.id] ?? []}
                   chainLinks={chainLinksByCardId[card.id]}
                   originInfo={originInfoByCardId[card.id]}
+                  participants={participants}
+                  currentUserId={user?.uid}
                 />
               ))}
             </div>
@@ -326,6 +330,8 @@ function SummaryContent({ roomId }: { roomId: string }) {
                   )}
                   isAnonymous={room.isAnonymous}
                   commentsByCardId={commentsByCardId}
+                  participants={participants}
+                  currentUserId={user?.uid}
                 />
               ))}
             </div>
@@ -371,6 +377,8 @@ function ActionItemRow({
   comments,
   chainLinks,
   originInfo,
+  participants,
+  currentUserId,
 }: {
   card: Card;
   isAnonymous: boolean;
@@ -378,6 +386,8 @@ function ActionItemRow({
   comments: CardComment[];
   chainLinks?: ChainLink[];
   originInfo?: { roomId: string; roomName: string; roomStatus: Room["status"] } | null;
+  participants: Participant[];
+  currentUserId?: string;
 }) {
   const t = useTranslations("summary");
   const status: "pending" | "done" | "keep" =
@@ -506,7 +516,15 @@ function ActionItemRow({
         {card.votedBy.length > 0 && (
           <span className="flex items-center gap-1 text-xs text-text-muted">
             <ThumbUpIcon />
-            {card.votedBy.length}
+            {isAnonymous || !currentUserId ? (
+              card.votedBy.length
+            ) : (
+              <VotersBadge
+                card={card}
+                participants={participants}
+                currentUserId={currentUserId}
+              />
+            )}
           </span>
         )}
         <CommentsToggle comments={comments} />
@@ -520,11 +538,15 @@ function ColumnSummary({
   cards,
   isAnonymous,
   commentsByCardId,
+  participants,
+  currentUserId,
 }: {
   column: Column;
   cards: Card[];
   isAnonymous: boolean;
   commentsByCardId: Record<string, CardComment[]>;
+  participants: Participant[];
+  currentUserId?: string;
 }) {
   const t = useTranslations("summary");
   return (
@@ -548,6 +570,8 @@ function ColumnSummary({
               card={card}
               isAnonymous={isAnonymous}
               comments={commentsByCardId[card.id] ?? []}
+              participants={participants}
+              currentUserId={currentUserId}
             />
           ))}
         </div>
@@ -560,10 +584,14 @@ function SummaryCard({
   card,
   isAnonymous,
   comments,
+  participants,
+  currentUserId,
 }: {
   card: Card;
   isAnonymous: boolean;
   comments: CardComment[];
+  participants: Participant[];
+  currentUserId?: string;
 }) {
   const t = useTranslations("summary");
   return (
@@ -592,7 +620,15 @@ function SummaryCard({
           {card.votedBy.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-text-muted">
               <ThumbUpIcon />
-              {card.votedBy.length}
+              {isAnonymous || !currentUserId ? (
+                card.votedBy.length
+              ) : (
+                <VotersBadge
+                  card={card}
+                  participants={participants}
+                  currentUserId={currentUserId}
+                />
+              )}
             </span>
           )}
           <CommentsToggle comments={comments} />
