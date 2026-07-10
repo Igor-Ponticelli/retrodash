@@ -1,3 +1,9 @@
+## [1.11.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.10.0...v1.11.0) (2026-07-10)
+
+### Features
+
+* AI suggests action items from improvement cards ([#39](https://github.com/Igor-Ponticelli/retrodash/issues/39)) ([cb9cf3c](https://github.com/Igor-Ponticelli/retrodash/commit/cb9cf3c15f26536baa193980fc38c58e9020fa9b))
+
 ## [1.10.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.9.0...v1.10.0) (2026-07-10)
 
 ### Features
