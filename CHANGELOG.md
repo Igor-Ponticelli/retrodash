@@ -1,3 +1,9 @@
+## [1.10.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.9.0...v1.10.0) (2026-07-10)
+
+### Features
+
+* action item return count, carry-over chain tracking, and card linking ([#38](https://github.com/Igor-Ponticelli/retrodash/issues/38)) ([4ae324e](https://github.com/Igor-Ponticelli/retrodash/commit/4ae324e898afc2f0f84e58ef63279e9757997756))
+
 ## [1.9.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.8.0...v1.9.0) (2026-07-09)
 
 ### Features
