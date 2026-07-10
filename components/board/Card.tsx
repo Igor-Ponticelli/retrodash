@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
@@ -606,6 +607,10 @@ function ActionStatusSegment({
   );
 }
 
+const ASSIGNEE_MENU_WIDTH = 208; // w-52
+const ASSIGNEE_MENU_HEIGHT = 224; // h-56
+const ASSIGNEE_MENU_GAP = 8;
+
 function AssigneeSelector({
   roomId,
   card,
@@ -619,17 +624,72 @@ function AssigneeSelector({
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        buttonRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      )
+        return;
+      setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    // Non-bubbling "scroll" events from the column's inner scroll container
+    // still reach a capture-phase listener on document, unlike a bubble-phase
+    // one. Closing on scroll elsewhere avoids having to keep a fixed-position
+    // menu in sync with an anchor that just moved — but scrolling the menu's
+    // own participant list must NOT close it.
+    const handleScroll = (e: Event) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const handleResize = () => setOpen(false);
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
   }, [open]);
+
+  const openMenu = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setOpen(true);
+      return;
+    }
+    // Flip based on actual available viewport space, not on the item's
+    // position in the list: prefer opening above (matches the button
+    // sitting at the bottom of the card), but fall back to below when
+    // there isn't enough room above, and vice-versa. If neither side
+    // fully fits, pick whichever has more room, then clamp so the menu
+    // is never pushed outside the viewport entirely.
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const fitsAbove = spaceAbove >= ASSIGNEE_MENU_HEIGHT + ASSIGNEE_MENU_GAP;
+    const fitsBelow = spaceBelow >= ASSIGNEE_MENU_HEIGHT + ASSIGNEE_MENU_GAP;
+    const openAbove = fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow);
+
+    let top = openAbove
+      ? rect.top - ASSIGNEE_MENU_GAP - ASSIGNEE_MENU_HEIGHT
+      : rect.bottom + ASSIGNEE_MENU_GAP;
+    top = Math.min(
+      Math.max(top, ASSIGNEE_MENU_GAP),
+      window.innerHeight - ASSIGNEE_MENU_HEIGHT - ASSIGNEE_MENU_GAP,
+    );
+
+    setMenuPos({ top, left: rect.right - ASSIGNEE_MENU_WIDTH });
+    setOpen(true);
+  };
 
   const handleSelect = async (participant: Participant | null) => {
     setSaving(true);
@@ -652,10 +712,11 @@ function AssigneeSelector({
   };
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         disabled={saving}
         aria-label={
           card.assigneeName
@@ -667,7 +728,7 @@ function AssigneeSelector({
             ? t("assignedTo", { name: card.assigneeName })
             : t("assign")
         }
-        className="flex items-center justify-center rounded-full ring-2 ring-transparent hover:ring-accent-primary transition-all cursor-pointer disabled:opacity-50"
+        className="shrink-0 flex items-center justify-center rounded-full ring-2 ring-transparent hover:ring-accent-primary transition-all cursor-pointer disabled:opacity-50"
       >
         {card.assigneeId ? (
           <Avatar
@@ -682,41 +743,60 @@ function AssigneeSelector({
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 bottom-full mb-2 z-10 w-48 max-h-56 overflow-y-auto bg-bg-card border border-border rounded-lg shadow-xl p-1.5">
-          {card.assigneeId && (
-            <button
-              type="button"
-              onClick={() => handleSelect(null)}
-              className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
-            >
-              {t("unassign")}
-            </button>
-          )}
-          {participants.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-text-muted">
-              {t("noParticipants")}
-            </p>
-          ) : (
-            participants.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleSelect(p)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                  card.assigneeId === p.id
-                    ? "bg-accent-primary/15 text-accent-primary"
-                    : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
-                }`}
-              >
-                <Avatar photoURL={p.photoURL} name={p.displayName} size={20} />
-                <span className="truncate">{p.displayName}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              width: ASSIGNEE_MENU_WIDTH,
+            }}
+            className="fixed z-50 h-56 flex flex-col bg-bg-card border border-border rounded-lg shadow-xl overflow-hidden"
+          >
+            {card.assigneeId && (
+              <div className="shrink-0 p-1.5 border-b border-border/60">
+                <button
+                  type="button"
+                  onClick={() => handleSelect(null)}
+                  className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
+                >
+                  {t("unassign")}
+                </button>
+              </div>
+            )}
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-1.5">
+              {participants.length === 0 ? (
+                <p className="px-2 py-1.5 text-xs text-text-muted">
+                  {t("noParticipants")}
+                </p>
+              ) : (
+                participants.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelect(p)}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                      card.assigneeId === p.id
+                        ? "bg-accent-primary/15 text-accent-primary"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                    }`}
+                  >
+                    <Avatar
+                      photoURL={p.photoURL}
+                      name={p.displayName}
+                      size={20}
+                    />
+                    <span className="truncate">{p.displayName}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
