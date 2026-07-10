@@ -27,6 +27,7 @@ export interface Card {
   authorName: string;
   authorPhotoURL?: string | null;
   votedBy: string[];
+  votedByProfiles?: Record<string, { name: string; photoURL: string | null }>;
   done?: boolean;
   actionStatus?: "pending" | "done" | "keep";
   assigneeId?: string;
