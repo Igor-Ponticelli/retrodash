@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
@@ -11,6 +12,7 @@ import {
   toggleVote,
   setActionStatus,
   setCardAssignee,
+  setCardLink,
   publishCard,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +34,11 @@ interface CardProps {
   onAddLinkedActionItem?: (text: string) => Promise<void>;
   linkedCard?: Card;
   participants?: Participant[];
+  linkingActive?: boolean;
+  isLinkTarget?: boolean;
+  onPickLinkTarget?: (card: Card) => void;
+  linkingSourceCardId?: string | null;
+  onStartLinkingCard?: (cardId: string) => void;
 }
 
 export function CardItem({
@@ -48,6 +55,11 @@ export function CardItem({
   onAddLinkedActionItem,
   linkedCard,
   participants = [],
+  linkingActive = false,
+  isLinkTarget = false,
+  onPickLinkTarget,
+  linkingSourceCardId = null,
+  onStartLinkingCard,
 }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(card.text);
@@ -69,10 +81,17 @@ export function CardItem({
   const isDraft = card.published === false;
   const hasVoted = card.votedBy.includes(userId);
   const canVote = !isOwnCard && !isDraft;
-  const canEdit = isOwnCard;
-  const canDelete = isOwnCard || isFacilitator;
+  const canEdit = isOwnCard && !card.carriedItem;
+  const canDelete = isFacilitator || (isOwnCard && !card.carriedItem);
   const actionStatus: "pending" | "done" | "keep" =
     card.actionStatus ?? (card.done ? "done" : "pending");
+  const isLinkingThisCard = linkingSourceCardId === card.id;
+  const pickable = linkingActive && isLinkTarget;
+  const linkingDimmed = linkingActive && !isLinkTarget && !isLinkingThisCard;
+
+  const handlePick = () => {
+    if (pickable) onPickLinkTarget?.(card);
+  };
 
   const voteClass = !canVote
     ? "text-text-muted cursor-default opacity-50"
@@ -157,18 +176,37 @@ export function CardItem({
 
   return (
     <div
-      className={`group relative bg-bg-elevated rounded-md p-3 border transition-colors ${
-        isDraft
-          ? "border-dashed border-border/60 opacity-80"
-          : isActionItem && actionStatus === "done"
-            ? "border-accent-primary/20"
-            : isActionItem && actionStatus === "keep"
-              ? "border-accent-violet/20"
-              : "border-transparent hover:border-border"
+      onClick={pickable ? handlePick : undefined}
+      onKeyDown={
+        pickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handlePick();
+              }
+            }
+          : undefined
+      }
+      role={pickable ? "button" : undefined}
+      tabIndex={pickable ? 0 : undefined}
+      className={`group relative bg-bg-elevated rounded-md p-3 border transition-all ${
+        pickable
+          ? "border-accent-primary ring-2 ring-accent-primary/40 cursor-pointer hover:ring-accent-primary/70"
+          : linkingDimmed
+            ? "opacity-40 pointer-events-none border-transparent"
+            : isDraft
+              ? "border-dashed border-border/60 opacity-80"
+              : isActionItem && actionStatus === "done"
+                ? "border-accent-primary/20"
+                : isActionItem && actionStatus === "keep"
+                  ? "border-accent-violet/20"
+                  : "border-transparent hover:border-border"
       }`}
     >
       {!isEditing && (
-        <div className="absolute top-2 right-2 flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity items-center gap-1">
+        <div
+          className={`absolute top-2 right-2 flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity items-center gap-1 ${linkingActive ? "pointer-events-none" : ""}`}
+        >
           {canEdit && (
             <button
               onClick={() => {
@@ -220,7 +258,9 @@ export function CardItem({
               {t("cancel")}
             </Button>
             <div className="ml-auto flex items-center gap-2">
-              <span className={`text-[10px] tabular-nums ${editOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}>
+              <span
+                className={`text-[10px] tabular-nums ${editOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}
+              >
                 {editText.length}/{MAX_CHARS}
               </span>
               {previousEditText !== null && (
@@ -261,7 +301,12 @@ export function CardItem({
         </div>
       ) : isActionItem ? (
         <div className="pr-14">
-          {(linkedCard ?? card.linkedCardText) && (
+          {(card.returnCount ?? 0) >= 1 && (
+            <span className="inline-block mb-1.5 text-[10px] text-text-muted bg-bg-elevated py-0.5 rounded-full">
+              {t("returnedCount", { count: card.returnCount ?? 0 })}
+            </span>
+          )}
+          {(linkedCard ?? card.linkedCardText) ? (
             <button
               onClick={() => setLinkedCardOpen(true)}
               className="mb-1.5 flex items-center gap-1 text-[10px] text-text-muted hover:text-text-secondary transition-colors cursor-pointer max-w-full"
@@ -271,12 +316,56 @@ export function CardItem({
                 {linkedCard?.text ?? card.linkedCardText}
               </span>
             </button>
+          ) : (
+            !isDraft &&
+            !card.carriedItem && (
+              <button
+                type="button"
+                onClick={() => onStartLinkingCard?.(card.id)}
+                className={`mb-1.5 inline-flex items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer ${
+                  isLinkingThisCard
+                    ? "text-accent-primary"
+                    : "text-text-muted hover:text-accent-primary"
+                }`}
+              >
+                <LinkIcon />
+                {isLinkingThisCard ? t("clickACardToLink") : t("linkToCard")}
+              </button>
+            )
           )}
           {linkedCardOpen && (
-            <Modal title={t("linkedCard")} onClose={() => setLinkedCardOpen(false)} size="sm">
+            <Modal
+              title={t("linkedCard")}
+              onClose={() => setLinkedCardOpen(false)}
+              size="sm"
+            >
               <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-wrap">
                 {linkedCard?.text ?? card.linkedCardText}
               </p>
+              {!card.carriedItem && (
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLinkedCardOpen(false);
+                      onStartLinkingCard?.(card.id);
+                    }}
+                    className="text-xs font-medium text-accent-primary hover:underline cursor-pointer"
+                  >
+                    {t("changeLink")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCardLink(roomId, card.id, null);
+                      setLinkedCardOpen(false);
+                    }}
+                    className="text-xs font-medium text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                  >
+                    {t("removeLink")}
+                  </button>
+                </div>
+              )}
             </Modal>
           )}
           <p
@@ -338,7 +427,11 @@ export function CardItem({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleAddLinkedItem}
-                      disabled={addingLinkedItem || !linkedItemText.trim() || linkedOverLimit}
+                      disabled={
+                        addingLinkedItem ||
+                        !linkedItemText.trim() ||
+                        linkedOverLimit
+                      }
                       className="px-2 h-5 rounded text-[10px] font-semibold bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {t("add")}
@@ -352,7 +445,9 @@ export function CardItem({
                     >
                       {t("cancel")}
                     </button>
-                    <span className={`ml-auto text-[10px] tabular-nums ${linkedOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}>
+                    <span
+                      className={`ml-auto text-[10px] tabular-nums ${linkedOverLimit ? "text-red-500 font-medium" : "text-text-muted"}`}
+                    >
                       {linkedItemText.length}/{MAX_CHARS}
                     </span>
                   </div>
@@ -372,19 +467,30 @@ export function CardItem({
       )}
 
       {!isEditing && (
-        <div className="flex items-center justify-between mt-3">
-          {!isAnonymous && (
-            card.authorName ? (
+        <div
+          className={`flex items-center justify-between mt-3 ${pickable ? "pointer-events-none" : ""}`}
+        >
+          {!isAnonymous &&
+            (card.authorName ? (
               <AuthorChip
-                name={isOwnCard && card.authorName === currentUserName ? t("you") : card.authorName}
-                photoURL={isOwnCard && card.authorName === currentUserName ? currentUserPhotoURL : card.authorPhotoURL}
+                name={
+                  isOwnCard && card.authorName === currentUserName
+                    ? t("you")
+                    : card.authorName
+                }
+                photoURL={
+                  isOwnCard && card.authorName === currentUserName
+                    ? currentUserPhotoURL
+                    : card.authorPhotoURL
+                }
               />
             ) : (
               <AnonymousChip label={t("anonymous")} />
-            )
-          )}
+            ))}
 
-          <div className={`flex items-center gap-2 ${isAnonymous ? "ml-auto" : ""}`}>
+          <div
+            className={`flex items-center gap-2 ${isAnonymous ? "ml-auto" : ""}`}
+          >
             {!isDraft && (
               <CardComments
                 roomId={roomId}
@@ -404,7 +510,9 @@ export function CardItem({
                 </span>
                 <button
                   onClick={handlePublish}
-                  disabled={publishing || !isRetroLive || card.text.length > MAX_CHARS}
+                  disabled={
+                    publishing || !isRetroLive || card.text.length > MAX_CHARS
+                  }
                   className="inline-flex items-center gap-1 px-2 h-6 rounded text-xs font-semibold bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {publishing ? t("publishing") : t("publish")}
@@ -422,14 +530,30 @@ export function CardItem({
               </button>
             ) : (
               <>
-                {!isAnonymous && (
-                  <AssigneeSelector
-                    roomId={roomId}
-                    card={card}
-                    participants={participants}
-                    t={t}
-                  />
-                )}
+                {!isAnonymous &&
+                  (card.carriedItem ? (
+                    card.assigneeId && (
+                      <span
+                        className="shrink-0"
+                        title={t("assignedTo", {
+                          name: card.assigneeName ?? "",
+                        })}
+                      >
+                        <Avatar
+                          photoURL={card.assigneePhotoURL}
+                          name={card.assigneeName ?? "?"}
+                          size={22}
+                        />
+                      </span>
+                    )
+                  ) : (
+                    <AssigneeSelector
+                      roomId={roomId}
+                      card={card}
+                      participants={participants}
+                      t={t}
+                    />
+                  ))}
                 <ActionStatusSegment
                   status={actionStatus}
                   onChange={(s) => setActionStatus(roomId, card.id, s)}
@@ -483,6 +607,10 @@ function ActionStatusSegment({
   );
 }
 
+const ASSIGNEE_MENU_WIDTH = 208; // w-52
+const ASSIGNEE_MENU_HEIGHT = 224; // h-56
+const ASSIGNEE_MENU_GAP = 8;
+
 function AssigneeSelector({
   roomId,
   card,
@@ -496,16 +624,72 @@ function AssigneeSelector({
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        buttonRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      )
+        return;
+      setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    // Non-bubbling "scroll" events from the column's inner scroll container
+    // still reach a capture-phase listener on document, unlike a bubble-phase
+    // one. Closing on scroll elsewhere avoids having to keep a fixed-position
+    // menu in sync with an anchor that just moved — but scrolling the menu's
+    // own participant list must NOT close it.
+    const handleScroll = (e: Event) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const handleResize = () => setOpen(false);
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
   }, [open]);
+
+  const openMenu = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setOpen(true);
+      return;
+    }
+    // Flip based on actual available viewport space, not on the item's
+    // position in the list: prefer opening above (matches the button
+    // sitting at the bottom of the card), but fall back to below when
+    // there isn't enough room above, and vice-versa. If neither side
+    // fully fits, pick whichever has more room, then clamp so the menu
+    // is never pushed outside the viewport entirely.
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const fitsAbove = spaceAbove >= ASSIGNEE_MENU_HEIGHT + ASSIGNEE_MENU_GAP;
+    const fitsBelow = spaceBelow >= ASSIGNEE_MENU_HEIGHT + ASSIGNEE_MENU_GAP;
+    const openAbove = fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow);
+
+    let top = openAbove
+      ? rect.top - ASSIGNEE_MENU_GAP - ASSIGNEE_MENU_HEIGHT
+      : rect.bottom + ASSIGNEE_MENU_GAP;
+    top = Math.min(
+      Math.max(top, ASSIGNEE_MENU_GAP),
+      window.innerHeight - ASSIGNEE_MENU_HEIGHT - ASSIGNEE_MENU_GAP,
+    );
+
+    setMenuPos({ top, left: rect.right - ASSIGNEE_MENU_WIDTH });
+    setOpen(true);
+  };
 
   const handleSelect = async (participant: Participant | null) => {
     setSaving(true);
@@ -514,7 +698,11 @@ function AssigneeSelector({
         roomId,
         card.id,
         participant
-          ? { id: participant.id, name: participant.displayName, photoURL: participant.photoURL }
+          ? {
+              id: participant.id,
+              name: participant.displayName,
+              photoURL: participant.photoURL,
+            }
           : null,
       );
       setOpen(false);
@@ -524,17 +712,30 @@ function AssigneeSelector({
   };
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         disabled={saving}
-        aria-label={card.assigneeName ? t("assignedTo", { name: card.assigneeName }) : t("assign")}
-        title={card.assigneeName ? t("assignedTo", { name: card.assigneeName }) : t("assign")}
-        className="flex items-center justify-center rounded-full ring-2 ring-transparent hover:ring-accent-primary transition-all cursor-pointer disabled:opacity-50"
+        aria-label={
+          card.assigneeName
+            ? t("assignedTo", { name: card.assigneeName })
+            : t("assign")
+        }
+        title={
+          card.assigneeName
+            ? t("assignedTo", { name: card.assigneeName })
+            : t("assign")
+        }
+        className="shrink-0 flex items-center justify-center rounded-full ring-2 ring-transparent hover:ring-accent-primary transition-all cursor-pointer disabled:opacity-50"
       >
         {card.assigneeId ? (
-          <Avatar photoURL={card.assigneePhotoURL} name={card.assigneeName ?? "?"} size={22} />
+          <Avatar
+            photoURL={card.assigneePhotoURL}
+            name={card.assigneeName ?? "?"}
+            size={22}
+          />
         ) : (
           <span className="size-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-text-muted hover:text-text-primary hover:border-text-muted transition-colors">
             <PersonPlusIcon />
@@ -542,45 +743,76 @@ function AssigneeSelector({
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 bottom-full mb-2 z-10 w-48 max-h-56 overflow-y-auto bg-bg-card border border-border rounded-lg shadow-xl p-1.5">
-          {card.assigneeId && (
-            <button
-              type="button"
-              onClick={() => handleSelect(null)}
-              className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
-            >
-              {t("unassign")}
-            </button>
-          )}
-          {participants.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-text-muted">{t("noParticipants")}</p>
-          ) : (
-            participants.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleSelect(p)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                  card.assigneeId === p.id
-                    ? "bg-accent-primary/15 text-accent-primary"
-                    : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
-                }`}
-              >
-                <Avatar photoURL={p.photoURL} name={p.displayName} size={20} />
-                <span className="truncate">{p.displayName}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              width: ASSIGNEE_MENU_WIDTH,
+            }}
+            className="fixed z-50 h-56 flex flex-col bg-bg-card border border-border rounded-lg shadow-xl overflow-hidden"
+          >
+            {card.assigneeId && (
+              <div className="shrink-0 p-1.5 border-b border-border/60">
+                <button
+                  type="button"
+                  onClick={() => handleSelect(null)}
+                  className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
+                >
+                  {t("unassign")}
+                </button>
+              </div>
+            )}
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-1.5">
+              {participants.length === 0 ? (
+                <p className="px-2 py-1.5 text-xs text-text-muted">
+                  {t("noParticipants")}
+                </p>
+              ) : (
+                participants.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelect(p)}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                      card.assigneeId === p.id
+                        ? "bg-accent-primary/15 text-accent-primary"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                    }`}
+                  >
+                    <Avatar
+                      photoURL={p.photoURL}
+                      name={p.displayName}
+                      size={20}
+                    />
+                    <span className="truncate">{p.displayName}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
 function PersonPlusIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" />
       <circle cx="8.5" cy="7.5" r="4" />
       <line x1="19" y1="8" x2="19" y2="14" />
@@ -617,7 +849,17 @@ function AnonymousChip({ label }: { label: string }) {
 
 function MaskIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
       <path d="M8 14s1.5 2 4 2 4-2 4-2" />
       <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5" />
@@ -673,7 +915,17 @@ function SparkleIcon() {
 
 function UndoIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M3 7v6h6" />
       <path d="M3 13C5 7 11 3 18 5a9 9 0 0 1 3 14" />
     </svg>
