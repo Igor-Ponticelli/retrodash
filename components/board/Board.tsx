@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { BoardColumn } from "@/components/board/Column";
 import type { Column, Card, Participant } from "@/types";
 
@@ -13,6 +14,13 @@ interface BoardProps {
   isRetroLive?: boolean;
   filterAuthorId?: string | null;
   participants?: Participant[];
+  linkingActive?: boolean;
+  pendingLinkTarget?: { id: string; text: string } | null;
+  linkingSourceCardId?: string | null;
+  onStartLinking?: () => void;
+  onStartLinkingCard?: (cardId: string) => void;
+  onCancelLinking?: () => void;
+  onPickLinkTarget?: (card: Card) => void;
 }
 
 export function Board({
@@ -27,7 +35,15 @@ export function Board({
   isRetroLive = true,
   filterAuthorId,
   participants = [],
+  linkingActive = false,
+  pendingLinkTarget = null,
+  linkingSourceCardId = null,
+  onStartLinking,
+  onStartLinkingCard,
+  onCancelLinking,
+  onPickLinkTarget,
 }: BoardProps) {
+  const t = useTranslations("board");
   const regularCols = columns
     .filter((col) => !col.isActionItems)
     .sort((a, b) => a.order - b.order);
@@ -58,10 +74,29 @@ export function Board({
     actionItemsColumnId,
     allVisibleCards: visibleCards,
     participants,
+    linkingActive,
+    pendingLinkTarget,
+    linkingSourceCardId,
+    onStartLinking,
+    onStartLinkingCard,
+    onCancelLinking,
+    onPickLinkTarget,
   };
 
   return (
-    <div className="flex h-full overflow-x-auto scrollbar-thin p-3 gap-3 snap-x snap-mandatory lg:snap-none lg:p-4 lg:gap-4">
+    <div className="relative flex h-full overflow-x-auto scrollbar-thin p-3 gap-3 snap-x snap-mandatory lg:snap-none lg:p-4 lg:gap-4">
+      {linkingActive && (
+        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-center gap-3 px-4 py-2 bg-accent-primary/10 border-b border-accent-primary/30 text-xs text-text-primary">
+          {t("linkPickerBannerHint")}
+          <button
+            type="button"
+            onClick={onCancelLinking}
+            className="text-accent-primary font-semibold hover:underline cursor-pointer"
+          >
+            {t("cancel")}
+          </button>
+        </div>
+      )}
       {regularCols.map((col) => (
         <div
           key={col.id}
