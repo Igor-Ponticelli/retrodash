@@ -35,6 +35,12 @@ service cloud.firestore {
         get(/databases/$(database)/documents/rooms/$(roomId)/cards/$(cardId)).data.authorId == request.auth.uid;
     }
 
+    // Anonymous rooms must never gain denormalized voter identity (name/photo),
+    // even from a client that bypasses the app UI — see votedByProfiles below.
+    function isAnonymousRoom(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)).data.isAnonymous == true;
+    }
+
     // ── Rooms ──────────────────────────────────────────────────────
 
     match /rooms/{roomId} {
@@ -180,18 +186,41 @@ service cloud.firestore {
             request.resource.data.linkedCardText.size() <= 2000)
          ))
         ||
-        // Any participant votes — set-based validation prevents forged vote counts
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'votedBy']) &&
+        // Any participant votes — set-based validation prevents forged vote counts.
+        // votedByProfiles is a denormalized name/photo snapshot per voter, keyed by
+        // uid (same trust level as assigneeName/assigneePhotoURL below: content isn't
+        // cross-validated against the real profile, worst case is a wrong display
+        // name). It's only ever touched in non-anonymous rooms — anonymous rooms are
+        // blocked from writing it at all, even from a client bypassing the app UI.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'votedBy', 'votedByProfiles']) &&
+         (
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['votedByProfiles']) ||
+           !isAnonymousRoom(roomId)
+         ) &&
          (
            // Adding own vote
            (request.resource.data.votedBy.toSet().difference(resource.data.votedBy.toSet()) == [request.auth.uid].toSet() &&
             resource.data.votedBy.toSet().difference(request.resource.data.votedBy.toSet()).size() == 0 &&
-            request.resource.data.votes == resource.data.votes + 1)
+            request.resource.data.votes == resource.data.votes + 1 &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['votedByProfiles']) ||
+              (request.resource.data.votedByProfiles.diff(resource.data.get('votedByProfiles', {})).affectedKeys() == [request.auth.uid].toSet() &&
+               request.resource.data.votedByProfiles[request.auth.uid].name is string &&
+               request.resource.data.votedByProfiles[request.auth.uid].name.size() <= 200 &&
+               (request.resource.data.votedByProfiles[request.auth.uid].photoURL is string ||
+                request.resource.data.votedByProfiles[request.auth.uid].photoURL == null) &&
+               (request.resource.data.votedByProfiles[request.auth.uid].photoURL == null ||
+                request.resource.data.votedByProfiles[request.auth.uid].photoURL.size() <= 2000))
+            ))
            ||
            // Removing own vote
            (resource.data.votedBy.toSet().difference(request.resource.data.votedBy.toSet()) == [request.auth.uid].toSet() &&
             request.resource.data.votedBy.toSet().difference(resource.data.votedBy.toSet()).size() == 0 &&
-            request.resource.data.votes == resource.data.votes - 1)
+            request.resource.data.votes == resource.data.votes - 1 &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['votedByProfiles']) ||
+              resource.data.get('votedByProfiles', {}).diff(request.resource.data.get('votedByProfiles', {})).affectedKeys() == [request.auth.uid].toSet()
+            ))
          ))
         ||
         // commentsCount bump, paired client-side with a comment create/delete
