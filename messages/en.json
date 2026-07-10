@@ -331,7 +331,10 @@
     "scoreboardPoints": "Points",
     "scoreboardEmpty": "No contributions yet.",
     "anonymous": "Anonymous",
-    "assignedTo": "Assigned to {name}"
+    "assignedTo": "Assigned to {name}",
+    "returnedCount": "Returned {count}×",
+    "carriedToRooms": "Carried to",
+    "originallyFrom": "Originally from"
   },
   "navbar": {
     "signOut": "Sign out",
@@ -438,7 +441,13 @@
     "assign": "Assign",
     "unassign": "Unassign",
     "assignedTo": "Assigned to {name}",
-    "noParticipants": "No participants in this room yet."
+    "noParticipants": "No participants in this room yet.",
+    "linkToCard": "Link to card",
+    "clickACardToLink": "Click a card to link",
+    "changeLink": "Change link",
+    "removeLink": "Remove link",
+    "linkPickerBannerHint": "Click a card on the board to link it, or press Esc to cancel.",
+    "returnedCount": "Returned {count}×"
   },
   "comments": {
     "title": "Comments",
