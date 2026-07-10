@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { CardComments } from "@/components/board/CardComments";
+import { VotersBadge } from "@/components/board/CardVoters";
 import {
   updateCard,
   deleteCard,
@@ -134,7 +135,15 @@ export function CardItem({
 
   const handleVote = () => {
     if (!canVote) return;
-    toggleVote(roomId, card.id, userId, hasVoted);
+    toggleVote(
+      roomId,
+      card.id,
+      userId,
+      hasVoted,
+      isAnonymous,
+      currentUserName,
+      currentUserPhotoURL,
+    );
   };
 
   const handleDelete = () => deleteCard(roomId, card.id);
@@ -570,15 +579,28 @@ export function CardItem({
                 </button>
               </div>
             ) : !isActionItem ? (
-              <button
-                onClick={handleVote}
-                disabled={!canVote}
-                aria-label={hasVoted ? t("removeVote") : t("vote")}
-                className={`inline-flex items-center gap-1.5 px-2 h-6 rounded text-xs font-medium transition-colors ${voteClass}`}
-              >
-                <ThumbUpIcon filled={hasVoted} />
-                {card.votedBy.length > 0 && <span>{card.votedBy.length}</span>}
-              </button>
+              <div className="inline-flex items-center gap-1">
+                <button
+                  onClick={handleVote}
+                  disabled={!canVote}
+                  aria-label={hasVoted ? t("removeVote") : t("vote")}
+                  className={`inline-flex items-center px-2 h-6 rounded text-xs font-medium transition-colors ${voteClass}`}
+                >
+                  <ThumbUpIcon filled={hasVoted} />
+                </button>
+                {card.votedBy.length > 0 &&
+                  (isAnonymous ? (
+                    <span className="text-xs text-text-muted">
+                      {card.votedBy.length}
+                    </span>
+                  ) : (
+                    <VotersBadge
+                      card={card}
+                      participants={participants}
+                      currentUserId={userId}
+                    />
+                  ))}
+              </div>
             ) : (
               <>
                 {!isAnonymous &&

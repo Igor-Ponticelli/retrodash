@@ -437,12 +437,21 @@ export async function toggleVote(
   roomId: string,
   cardId: string,
   userId: string,
-  hasVoted: boolean
+  hasVoted: boolean,
+  isAnonymous: boolean,
+  voterName?: string,
+  voterPhotoURL?: string | null
 ): Promise<void> {
-  await updateDoc(doc(db, "rooms", roomId, "cards", cardId), {
+  const updates: Record<string, unknown> = {
     votes: increment(hasVoted ? -1 : 1),
     votedBy: hasVoted ? arrayRemove(userId) : arrayUnion(userId),
-  });
+  };
+  if (!isAnonymous) {
+    updates[`votedByProfiles.${userId}`] = hasVoted
+      ? deleteField()
+      : { name: voterName ?? "", photoURL: voterPhotoURL ?? null };
+  }
+  await updateDoc(doc(db, "rooms", roomId, "cards", cardId), updates);
 }
 
 export async function removeParticipant(roomId: string, userId: string): Promise<void> {
