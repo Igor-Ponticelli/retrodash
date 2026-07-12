@@ -340,8 +340,14 @@
     "signOut": "Sign out",
     "feedback": "Feedback",
     "myAccount": "My account",
+    "whatsNew": "What's New",
     "myActionItems": "My action items",
     "myActionItemsEmpty": "No action items assigned to you yet."
+  },
+  "whatsNewModal": {
+    "title": "What's New",
+    "viewHistory": "View full history",
+    "gotIt": "Got it"
   },
   "language": {
     "label": "Language",
