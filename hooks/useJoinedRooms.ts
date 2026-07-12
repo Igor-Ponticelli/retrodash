@@ -4,12 +4,18 @@ import { useEffect, useState } from "react";
 import { onSnapshot, getDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
 import { joinedRoomsParticipantQuery, roomDoc } from "@/lib/firestore";
+import { createRemountCache } from "@/lib/remountCache";
 import type { Room } from "@/types";
+
+const joinedRoomsCache = createRemountCache<Room[]>();
 
 export function useJoinedRooms() {
   const { user } = useAuth();
-  const [joinedRooms, setJoinedRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasCached = !!user && joinedRoomsCache.has(user.uid);
+  const [joinedRooms, setJoinedRooms] = useState<Room[]>(() =>
+    hasCached ? joinedRoomsCache.get(user!.uid)! : []
+  );
+  const [loading, setLoading] = useState(() => !hasCached);
 
   useEffect(() => {
     if (!user) {
@@ -29,7 +35,11 @@ export function useJoinedRooms() {
         );
 
         if (memberDocs.length === 0) {
-          if (!cancelled) { setJoinedRooms([]); setLoading(false); }
+          if (!cancelled) {
+            setJoinedRooms([]);
+            joinedRoomsCache.set(user.uid, []);
+            setLoading(false);
+          }
           return;
         }
 
@@ -37,12 +47,12 @@ export function useJoinedRooms() {
         const roomSnaps = await Promise.all(roomIds.map((id) => getDoc(roomDoc(id))));
 
         if (!cancelled) {
-          setJoinedRooms(
-            roomSnaps
-              .filter((d) => d.exists())
-              .map((d) => ({ id: d.id, ...d.data() }) as Room)
-              .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds),
-          );
+          const data = roomSnaps
+            .filter((d) => d.exists())
+            .map((d) => ({ id: d.id, ...d.data() }) as Room)
+            .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+          setJoinedRooms(data);
+          joinedRoomsCache.set(user.uid, data);
           setLoading(false);
         }
       },
