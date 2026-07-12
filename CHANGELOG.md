@@ -1,3 +1,9 @@
+## [1.13.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.13.0...v1.13.1) (2026-07-12)
+
+### Bug Fixes
+
+* avoid data flash on locale switch in dashboard and room views ([#42](https://github.com/Igor-Ponticelli/retrodash/issues/42)) ([9d0b030](https://github.com/Igor-Ponticelli/retrodash/commit/9d0b0305bf07aca0a473d5f41eea99c9618d84cd))
+
 ## [1.13.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.12.0...v1.13.0) (2026-07-10)
 
 ### Features
