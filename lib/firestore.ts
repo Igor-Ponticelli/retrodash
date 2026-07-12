@@ -19,7 +19,7 @@ import {
   arrayRemove,
   increment,
 } from "firebase/firestore";
-import type { Card, FeedbackType, Room } from "@/types";
+import type { Card, FeedbackType, Room, UserProfile } from "@/types";
 import { db } from "@/lib/firebase";
 
 // ── Room queries ───────────────────────────────────────────────
@@ -525,6 +525,31 @@ export async function deleteComment(
     commentsCount: increment(-1),
   });
   await batch.commit();
+}
+
+// ── Users ──────────────────────────────────────────────────────
+
+function userDoc(userId: string) {
+  return doc(db, "users", userId);
+}
+
+// First "create if missing" helper in this file: reads the profile doc, and
+// if it doesn't exist yet (user never triggered a What's New check before),
+// creates it with defaults and returns that. Callers never need to know
+// whether this was a create or a read.
+export async function getOrCreateUserProfile(userId: string): Promise<UserProfile> {
+  const ref = userDoc(userId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    return { id: snap.id, ...(snap.data() as Omit<UserProfile, "id">) };
+  }
+  const defaults: Omit<UserProfile, "id"> = { lastSeenVersion: null };
+  await setDoc(ref, defaults);
+  return { id: userId, ...defaults };
+}
+
+export async function updateLastSeenVersion(userId: string, version: string): Promise<void> {
+  await setDoc(userDoc(userId), { lastSeenVersion: version }, { merge: true });
 }
 
 export async function addFeedback({
