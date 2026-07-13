@@ -1,3 +1,9 @@
+## [1.14.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.13.1...v1.14.0) (2026-07-13)
+
+### Features
+
+* add What's New notification system for release announcements ([#43](https://github.com/Igor-Ponticelli/retrodash/issues/43)) ([68fe1c4](https://github.com/Igor-Ponticelli/retrodash/commit/68fe1c448c76ea37a27f4abeeb44ee3328656d8e))
+
 ## [1.13.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.13.0...v1.13.1) (2026-07-12)
 
 ### Bug Fixes
