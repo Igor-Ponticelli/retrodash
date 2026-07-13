@@ -354,5 +354,27 @@ service cloud.firestore {
         request.resource.data.userEmail is string &&
         request.resource.data.userEmail.size() <= 500;
     }
+
+    // ── Users ──────────────────────────────────────────────────────
+    // Self-owned profile doc, created lazily by getOrCreateUserProfile() on
+    // first read. Only ever accessed by direct doc ID (never queried), so
+    // "get" is enough — no "list" is granted. Fase 4 (Organizations) will
+    // add more fields here and will need to extend this field allowlist.
+
+    match /users/{userId} {
+      allow get: if isAuth() && userId == request.auth.uid;
+
+      allow create: if isAuth() && userId == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['lastSeenVersion']) &&
+        (request.resource.data.lastSeenVersion == null ||
+         (request.resource.data.lastSeenVersion is string &&
+          request.resource.data.lastSeenVersion.size() <= 30));
+
+      allow update: if isAuth() && userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeenVersion']) &&
+        (request.resource.data.lastSeenVersion == null ||
+         (request.resource.data.lastSeenVersion is string &&
+          request.resource.data.lastSeenVersion.size() <= 30));
+    }
   }
 }

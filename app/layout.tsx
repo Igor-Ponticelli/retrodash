@@ -1,5 +1,6 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { WhatsNewProvider } from "@/components/whatsnew/WhatsNewProvider";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { routing } from "@/i18n/routing";
 import "./globals.css";
@@ -24,7 +25,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans antialiased">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <WhatsNewProvider>{children}</WhatsNewProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

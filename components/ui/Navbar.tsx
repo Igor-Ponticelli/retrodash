@@ -6,12 +6,15 @@ import Link from "next/link";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { signOut } from "@/lib/auth";
+import { lockScroll, unlockScroll } from "@/lib/scrollLock";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyActionItems } from "@/hooks/useMyActionItems";
+import { useWhatsNew } from "@/hooks/useWhatsNew";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { RetroDashLogo, RetroDashIcon } from "@/components/ui/RetroDashLogo";
-import { MenuIcon, MessageIcon, CircleIcon, CheckIcon, LoopIcon } from "@/components/ui/Icons";
+import { MenuIcon, MessageIcon, CircleIcon, CheckIcon, LoopIcon, SparkleIcon } from "@/components/ui/Icons";
+import { WhatsNewModal } from "@/components/whatsnew/WhatsNewModal";
 
 interface NavbarProps {
   logoHref?: string;
@@ -29,6 +32,7 @@ export function Navbar({
   showHamburger,
 }: NavbarProps) {
   const { user } = useAuth();
+  const { isFirstAccess } = useWhatsNew();
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
@@ -36,6 +40,7 @@ export function Navbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerClosing, setDrawerClosing] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -52,13 +57,13 @@ export function Navbar({
 
   useEffect(() => {
     if (!drawerOpen) return;
-    document.body.style.overflow = "hidden";
+    lockScroll();
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") startCloseDrawer();
     };
     document.addEventListener("keydown", handler);
     return () => {
-      document.body.style.overflow = "";
+      unlockScroll();
       document.removeEventListener("keydown", handler);
     };
   }, [drawerOpen]);
@@ -299,6 +304,22 @@ export function Navbar({
 
             <div className="mx-6 h-px bg-border shrink-0" />
 
+            {!isFirstAccess && (
+              <>
+                <div className="px-6 pt-4 shrink-0">
+                  <button
+                    onClick={() => setWhatsNewOpen(true)}
+                    className="w-full flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer py-1"
+                  >
+                    <SparkleIcon size={15} />
+                    {t("whatsNew")}
+                  </button>
+                </div>
+
+                <div className="mx-6 mt-3 h-px bg-border shrink-0" />
+              </>
+            )}
+
             <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-6 py-4">
               <MyActionItemsCollapse onNavigate={startCloseDrawer} />
             </div>
@@ -315,6 +336,8 @@ export function Navbar({
           </div>
         </>
       )}
+
+      {whatsNewOpen && <WhatsNewModal initialShowAll onClose={() => setWhatsNewOpen(false)} />}
     </>
   );
 }

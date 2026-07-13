@@ -340,8 +340,14 @@
     "signOut": "Sair",
     "feedback": "Feedback",
     "myAccount": "Minha conta",
+    "whatsNew": "Novidades",
     "myActionItems": "Meus itens de ação",
     "myActionItemsEmpty": "Nenhum item de ação atribuído a você ainda."
+  },
+  "whatsNewModal": {
+    "title": "Novidades",
+    "viewHistory": "Ver histórico completo",
+    "gotIt": "Entendi"
   },
   "language": {
     "label": "Idioma",

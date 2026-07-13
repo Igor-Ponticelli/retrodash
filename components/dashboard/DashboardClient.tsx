@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRooms } from "@/hooks/useRooms";
 import { useJoinedRooms } from "@/hooks/useJoinedRooms";
+import { useWhatsNew } from "@/hooks/useWhatsNew";
 import { Navbar } from "@/components/ui/Navbar";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { JoinRoomModal } from "@/components/room/JoinRoomModal";
 import { NewRoomModal } from "@/components/room/NewRoomModal";
+import { WhatsNewModal } from "@/components/whatsnew/WhatsNewModal";
 import { DeleteRoomModal } from "./DeleteRoomModal";
 import { PlusIcon, BoardIcon } from "@/components/ui/Icons";
 import { RoomCard } from "./RoomCard";
@@ -17,10 +19,18 @@ import type { Room } from "@/types";
 export function DashboardClient() {
   const { rooms, loading } = useRooms();
   const { joinedRooms, loading: joinedLoading } = useJoinedRooms();
+  const { loading: whatsNewLoading, unseenNotes } = useWhatsNew();
   const [joinOpen, setJoinOpen] = useState(false);
   const [newRoomOpen, setNewRoomOpen] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const t = useTranslations("dashboard");
+
+  useEffect(() => {
+    if (!whatsNewLoading && unseenNotes.length > 0) {
+      setWhatsNewOpen(true);
+    }
+  }, [whatsNewLoading, unseenNotes]);
 
   return (
     <div className="min-h-screen bg-bg-base flex flex-col">
@@ -102,6 +112,7 @@ export function DashboardClient() {
       {roomToDelete && (
         <DeleteRoomModal room={roomToDelete} onClose={() => setRoomToDelete(null)} />
       )}
+      {whatsNewOpen && <WhatsNewModal onClose={() => setWhatsNewOpen(false)} />}
     </div>
   );
 }

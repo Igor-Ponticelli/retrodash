@@ -87,3 +87,10 @@ export interface Feedback {
   message: string;
   createdAt: Timestamp;
 }
+
+// Self-managed profile doc. Fase 4 (Organizations) will extend this with
+// more fields (membership, extended profile) — nothing org-related yet.
+export interface UserProfile {
+  id: string;
+  lastSeenVersion: string | null;
+}
