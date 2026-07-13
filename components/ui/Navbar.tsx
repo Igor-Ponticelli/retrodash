@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { signOut } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyActionItems } from "@/hooks/useMyActionItems";
+import { useWhatsNew } from "@/hooks/useWhatsNew";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { RetroDashLogo, RetroDashIcon } from "@/components/ui/RetroDashLogo";
@@ -30,6 +31,7 @@ export function Navbar({
   showHamburger,
 }: NavbarProps) {
   const { user } = useAuth();
+  const { isFirstAccess } = useWhatsNew();
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
@@ -301,20 +303,24 @@ export function Navbar({
 
             <div className="mx-6 h-px bg-border shrink-0" />
 
-            <div className="px-6 pt-4 shrink-0">
-              <button
-                onClick={() => {
-                  startCloseDrawer();
-                  setWhatsNewOpen(true);
-                }}
-                className="w-full flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer py-1"
-              >
-                <SparkleIcon size={15} />
-                {t("whatsNew")}
-              </button>
-            </div>
+            {!isFirstAccess && (
+              <>
+                <div className="px-6 pt-4 shrink-0">
+                  <button
+                    onClick={() => {
+                      startCloseDrawer();
+                      setWhatsNewOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer py-1"
+                  >
+                    <SparkleIcon size={15} />
+                    {t("whatsNew")}
+                  </button>
+                </div>
 
-            <div className="mx-6 mt-3 h-px bg-border shrink-0" />
+                <div className="mx-6 mt-3 h-px bg-border shrink-0" />
+              </>
+            )}
 
             <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-6 py-4">
               <MyActionItemsCollapse onNavigate={startCloseDrawer} />

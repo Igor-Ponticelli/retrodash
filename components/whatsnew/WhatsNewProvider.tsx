@@ -1,19 +1,37 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type { User } from "firebase/auth";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import { getOrCreateUserProfile, updateLastSeenVersion } from "@/lib/firestore";
 import { RELEASE_NOTES, CURRENT_VERSION, isVersionNewer, type ReleaseNote } from "@/lib/releaseNotes";
 
+// Firebase sets creationTime and lastSignInTime to the same instant on a
+// brand-new account's first sign-in; lastSignInTime only moves forward on a
+// later, separate sign-in. Missing metadata defaults to "not first access"
+// so a data gap never permanently hides the feature.
+function isFirstAccessUser(user: User): boolean {
+  const { creationTime, lastSignInTime } = user.metadata;
+  if (!creationTime || !lastSignInTime) return false;
+  return creationTime === lastSignInTime;
+}
+
 interface WhatsNewState {
   loading: boolean;
   unseenNotes: ReleaseNote[];
+  // True only during a brand-new account's very first-ever session (Firebase
+  // Auth's creationTime === lastSignInTime). Distinct from "just created the
+  // users/{uid} doc": an existing user hits that same code path the first
+  // time this feature ships, and they should still see the catch-up recap —
+  // only a genuinely new signup has nothing to catch up on.
+  isFirstAccess: boolean;
   markSeen: () => Promise<void>;
 }
 
 const WhatsNewContext = createContext<WhatsNewState>({
   loading: true,
   unseenNotes: [],
+  isFirstAccess: false,
   markSeen: async () => {},
 });
 
@@ -38,13 +56,23 @@ export function WhatsNewProvider({ children }: { children: React.ReactNode }) {
     setProfileLoading(true);
     getOrCreateUserProfile(user.uid).then((profile) => {
       if (cancelled) return;
-      setLastSeenVersion(profile.lastSeenVersion);
+      if (isFirstAccessUser(user) && profile.lastSeenVersion === null) {
+        // Brand-new signup: nothing existed before them, so there's nothing
+        // to catch up on. Silently mark everything seen instead of showing
+        // a recap of features they've only ever known as the default.
+        setLastSeenVersion(CURRENT_VERSION);
+        void updateLastSeenVersion(user.uid, CURRENT_VERSION);
+      } else {
+        setLastSeenVersion(profile.lastSeenVersion);
+      }
       setProfileLoading(false);
     });
     return () => {
       cancelled = true;
     };
   }, [user?.uid, authLoading]);
+
+  const isFirstAccess = useMemo(() => (user ? isFirstAccessUser(user) : false), [user]);
 
   const unseenNotes = useMemo(() => {
     if (!user || profileLoading) return [];
@@ -64,7 +92,9 @@ export function WhatsNewProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <WhatsNewContext.Provider value={{ loading: authLoading || profileLoading, unseenNotes, markSeen }}>
+    <WhatsNewContext.Provider
+      value={{ loading: authLoading || profileLoading, unseenNotes, isFirstAccess, markSeen }}
+    >
       {children}
     </WhatsNewContext.Provider>
   );
