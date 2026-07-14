@@ -22,13 +22,13 @@ export function WhatsNewModal({ onClose, initialShowAll = false }: WhatsNewModal
   const notesToShow = showAll ? RELEASE_NOTES : unseenNotes;
   const canOfferHistory = !showAll && RELEASE_NOTES.length > unseenNotes.length;
 
-  const handleConfirm = () => {
+  const handleClose = () => {
     void markSeen();
     onClose();
   };
 
   return (
-    <Modal title={t("title")} onClose={onClose} size="3xl">
+    <Modal title={t("title")} onClose={handleClose} size="3xl">
       <div className="space-y-12">
         {notesToShow.map((note) => (
           <ReleaseNoteCard key={note.version} note={note} locale={locale} />
@@ -47,7 +47,7 @@ export function WhatsNewModal({ onClose, initialShowAll = false }: WhatsNewModal
         ) : (
           <span />
         )}
-        <Button onClick={handleConfirm}>{t("gotIt")}</Button>
+        <Button onClick={handleClose}>{t("gotIt")}</Button>
       </div>
     </Modal>
   );
