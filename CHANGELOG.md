@@ -1,3 +1,9 @@
+## [1.15.2](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.1...v1.15.2) (2026-07-14)
+
+### Bug Fixes
+
+* mark whats new as seen on any modal dismissal, not just confirm ([#46](https://github.com/Igor-Ponticelli/retrodash/issues/46)) ([ed6de92](https://github.com/Igor-Ponticelli/retrodash/commit/ed6de929a83f0a03489ea8a603a774916b5cdede))
+
 ## [1.15.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.0...v1.15.1) (2026-07-14)
 
 ### Bug Fixes
