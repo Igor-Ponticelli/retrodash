@@ -1,3 +1,15 @@
+## [1.15.2](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.1...v1.15.2) (2026-07-14)
+
+### Bug Fixes
+
+* mark whats new as seen on any modal dismissal, not just confirm ([#46](https://github.com/Igor-Ponticelli/retrodash/issues/46)) ([ed6de92](https://github.com/Igor-Ponticelli/retrodash/commit/ed6de929a83f0a03489ea8a603a774916b5cdede))
+
+## [1.15.1](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.0...v1.15.1) (2026-07-14)
+
+### Bug Fixes
+
+* preserve locale on internal navigation ([#45](https://github.com/Igor-Ponticelli/retrodash/issues/45)) ([5ab1d51](https://github.com/Igor-Ponticelli/retrodash/commit/5ab1d515d59b06f99fb04a0a4f8b5fb40b0a3de2))
+
 ## [1.15.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.14.0...v1.15.0) (2026-07-14)
 
 ### Features

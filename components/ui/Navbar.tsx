@@ -2,8 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { Link, useRouter, usePathname } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { signOut } from "@/lib/auth";
 import { lockScroll, unlockScroll } from "@/lib/scrollLock";

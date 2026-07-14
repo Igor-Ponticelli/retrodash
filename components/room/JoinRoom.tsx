@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { RetroDashLogo } from "@/components/ui/RetroDashLogo";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { hashPassword } from "@/lib/auth";
 import { joinRoom } from "@/lib/firestore";
@@ -20,7 +19,13 @@ interface JoinRoomProps {
   onJoined: () => void;
 }
 
-export function JoinRoom({ room, userId, userDisplayName, userPhotoURL, onJoined }: JoinRoomProps) {
+export function JoinRoom({
+  room,
+  userId,
+  userDisplayName,
+  userPhotoURL,
+  onJoined,
+}: JoinRoomProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -66,7 +71,9 @@ export function JoinRoom({ room, userId, userDisplayName, userPhotoURL, onJoined
           </div>
         </div>
 
-        <p className="text-text-secondary text-sm mb-6">{t("passwordProtected")}</p>
+        <p className="text-text-secondary text-sm mb-6">
+          {t("passwordProtected")}
+        </p>
 
         <form onSubmit={handleJoin} noValidate className="space-y-4">
           <Field label={t("passwordLabel")} error={error ?? undefined}>
@@ -75,7 +82,10 @@ export function JoinRoom({ room, userId, userDisplayName, userPhotoURL, onJoined
               autoFocus
               placeholder={t("passwordPlaceholder")}
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
             />
           </Field>
 
@@ -103,8 +113,21 @@ export function JoinRoom({ room, userId, userDisplayName, userPhotoURL, onJoined
 function LockIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="3" y="8" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M6 8V6a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <rect
+        x="3"
+        y="8"
+        width="12"
+        height="9"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M6 8V6a3 3 0 016 0v2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
       <circle cx="9" cy="13" r="1.2" fill="currentColor" />
     </svg>
   );
