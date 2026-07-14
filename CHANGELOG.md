@@ -1,3 +1,9 @@
+## [1.15.3](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.2...v1.15.3) (2026-07-14)
+
+### Bug Fixes
+
+* refresh stale carry-over links and comment counts in room summary ([#47](https://github.com/Igor-Ponticelli/retrodash/issues/47)) ([5c7927a](https://github.com/Igor-Ponticelli/retrodash/commit/5c7927ada98ec990618f9749be2fe1c58f01c6ed))
+
 ## [1.15.2](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.1...v1.15.2) (2026-07-14)
 
 ### Bug Fixes
