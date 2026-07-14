@@ -53,7 +53,7 @@ export function RoomSummaryDocument({
         </View>
 
         {participants.length > 0 && (
-          <View style={styles.section}>
+          <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
             <View style={styles.participantsRow}>
               {participants.map((p) => (
@@ -64,7 +64,7 @@ export function RoomSummaryDocument({
         )}
 
         {!room.isAnonymous && (
-          <View style={styles.section}>
+          <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading
               label={translations.scoreboard}
               count={scoreboard.length}
@@ -79,7 +79,7 @@ export function RoomSummaryDocument({
           </View>
         )}
 
-        <View style={styles.section}>
+        <View style={styles.section} minPresenceAhead={80}>
           <SectionHeading
             label={translations.actionItems}
             count={newActionItemsCount}
@@ -89,13 +89,14 @@ export function RoomSummaryDocument({
           {actionCards.length === 0 ? (
             <Text style={styles.emptyText}>{translations.noActionItems}</Text>
           ) : (
-            <View style={styles.itemsCard}>
+            <View>
               {actionCards.map((card, i) => (
                 <PdfActionItemRow
                   key={card.id}
                   card={card}
                   isAnonymous={room.isAnonymous}
                   isFirst={i === 0}
+                  isLast={i === actionCards.length - 1}
                   translations={translations}
                   colors={colors}
                   styles={styles}
@@ -106,7 +107,7 @@ export function RoomSummaryDocument({
         </View>
 
         {regularColumns.length > 0 && (
-          <View style={styles.section}>
+          <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
             <View style={styles.columnsGrid}>
               {regularColumns.map(({ column, cards }) => (
@@ -213,7 +214,7 @@ function ScoreboardTable({
   styles: PdfStyles;
 }) {
   return (
-    <View style={styles.table}>
+    <View>
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderCell, styles.colRank]}>#</Text>
         <Text style={[styles.tableHeaderCell, styles.colParticipant]}>{translations.participants}</Text>
@@ -223,8 +224,12 @@ function ScoreboardTable({
         <Text style={[styles.tableHeaderCell, styles.colStat]}>{translations.scoreboardComments}</Text>
         <Text style={[styles.tableHeaderCell, styles.colStat]}>{translations.scoreboardPoints}</Text>
       </View>
-      {entries.map((entry) => (
-        <View key={entry.userId} style={styles.tableRow} wrap={false}>
+      {entries.map((entry, i) => (
+        <View
+          key={entry.userId}
+          style={i === entries.length - 1 ? [styles.tableRow, styles.tableRowLast] : styles.tableRow}
+          wrap={false}
+        >
           <Text style={[styles.tableCell, styles.colRank]}>{entry.position}</Text>
           <View style={styles.colParticipant}>
             <PdfAvatarInitial name={entry.userName} styles={styles} />
@@ -289,6 +294,7 @@ function PdfActionItemRow({
   card,
   isAnonymous,
   isFirst,
+  isLast,
   translations,
   colors,
   styles,
@@ -296,6 +302,7 @@ function PdfActionItemRow({
   card: Card;
   isAnonymous: boolean;
   isFirst: boolean;
+  isLast: boolean;
   translations: PdfTranslations;
   colors: PdfColors;
   styles: PdfStyles;
@@ -303,9 +310,14 @@ function PdfActionItemRow({
   const status: "pending" | "done" | "keep" = card.actionStatus ?? (card.done ? "done" : "pending");
   const statusColor =
     status === "done" ? colors.statusDone : status === "keep" ? colors.statusKeep : colors.statusPending;
+  const rowStyle = [
+    styles.actionItemRow,
+    ...(isFirst ? [styles.actionItemRowFirst] : []),
+    ...(isLast ? [styles.actionItemRowLast] : []),
+  ];
 
   return (
-    <View style={isFirst ? [styles.actionItemRow, styles.actionItemRowFirst] : styles.actionItemRow} wrap={false}>
+    <View style={rowStyle} wrap={false}>
       <View style={{ marginTop: 2 }}>
         {status === "done" ? (
           <PdfCheckIcon size={9} color={statusColor} />

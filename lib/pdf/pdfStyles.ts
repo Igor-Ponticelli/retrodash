@@ -114,16 +114,17 @@ export function createPdfStyles(colors: PdfColors) {
       textTransform: "uppercase",
       color: colors.accentPrimary,
     },
-    table: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 6,
-    },
     tableHeaderRow: {
       flexDirection: "row",
       backgroundColor: colors.bgElevated,
       paddingVertical: 6,
       paddingHorizontal: 8,
+      borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: colors.border,
+      borderTopLeftRadius: 6,
+      borderTopRightRadius: 6,
     },
     tableRow: {
       flexDirection: "row",
@@ -131,7 +132,20 @@ export function createPdfStyles(colors: PdfColors) {
       paddingVertical: 6,
       paddingHorizontal: 8,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: colors.border,
+    },
+    // Applied to the last row instead of relying on a bounding box around
+    // the whole table -- a bordered container that wraps across a page
+    // break gets its border redrawn on the continuation fragment, which
+    // looks like a floating box. Bordering each row (this file's
+    // actionItemRow/actionItemRowLast use the same trick) keeps the frame
+    // intact regardless of where a page break falls.
+    tableRowLast: {
+      borderBottomWidth: 1,
+      borderBottomLeftRadius: 6,
+      borderBottomRightRadius: 6,
     },
     tableHeaderCell: {
       fontSize: 7,
@@ -146,21 +160,27 @@ export function createPdfStyles(colors: PdfColors) {
     colRank: { width: "8%" },
     colParticipant: { width: "34%", flexDirection: "row", alignItems: "center", gap: 6 },
     colStat: { width: "14.5%", textAlign: "center" },
-    itemsCard: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 6,
-    },
+    // See the comment on tableRowLast: border lives on each row rather than
+    // a bounding box around the whole list, so a page break never leaves a
+    // floating bordered box behind.
     actionItemRow: {
       flexDirection: "row",
       gap: 8,
       paddingVertical: 10,
       paddingHorizontal: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: colors.border,
     },
     actionItemRowFirst: {
-      borderTopWidth: 0,
+      borderTopLeftRadius: 6,
+      borderTopRightRadius: 6,
+    },
+    actionItemRowLast: {
+      borderBottomWidth: 1,
+      borderBottomLeftRadius: 6,
+      borderBottomRightRadius: 6,
     },
     actionItemBody: {
       flex: 1,
