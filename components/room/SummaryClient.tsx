@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -103,6 +103,21 @@ function SummaryContent({ roomId }: { roomId: string }) {
 
   const loading = roomLoading || cardsLoading;
 
+  const commentsCountKey = useMemo(
+    () => cards.map((c) => `${c.id}:${c.commentsCount ?? 0}`).join("|"),
+    [cards],
+  );
+  const carryOverChainKey = useMemo(
+    () =>
+      cards
+        .map(
+          (c) =>
+            `${c.id}:${c.carriedToRooms?.length ?? 0}:${c.originRoomId ?? ""}`,
+        )
+        .join("|"),
+    [cards],
+  );
+
   const actionItemsCol = columns.find((c) => c.isActionItems);
   const regularCols = columns.filter((c) => !c.isActionItems);
   const publishedCards = cards.filter((c) => c.published !== false);
@@ -139,7 +154,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, cardsLoading]);
+  }, [roomId, cardsLoading, commentsCountKey]);
 
   useEffect(() => {
     if (!room || participants.length === 0 || !commentsLoaded) return;
@@ -165,7 +180,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, cardsLoading]);
+  }, [roomId, cardsLoading, carryOverChainKey]);
 
   if (loading) return <SummarySkeleton />;
   if (!room) return null;
