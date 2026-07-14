@@ -24,6 +24,7 @@ import {
   saveRetroScoreboard,
 } from "@/lib/scoreboard";
 import { ScoreboardSection } from "@/components/room/ScoreboardSection";
+import { ExportPdfMenu } from "@/components/room/ExportPdfMenu";
 import { CommentThread } from "@/components/board/CommentThread";
 import { VotersBadge } from "@/components/board/CardVoters";
 import { Modal } from "@/components/ui/Modal";
@@ -36,7 +37,6 @@ import {
   CircleIcon,
   LoopIcon,
   ThumbUpIcon,
-  ExportIcon,
   PeopleIcon,
   CommentIcon,
 } from "@/components/ui/Icons";
@@ -176,6 +176,10 @@ function SummaryContent({ roomId }: { roomId: string }) {
       : [],
   );
   const newActionCards = actionCards.filter((c) => !c.carriedItem);
+  const regularColumnsWithCards = regularCols.map((col) => ({
+    column: col,
+    cards: sortByVotes(publishedCards.filter((c) => c.columnId === col.id)),
+  }));
 
   const dateLocale = locale === "pt-BR" ? "pt-BR" : "en-US";
   const endedDate = room.createdAt
@@ -222,14 +226,15 @@ function SummaryContent({ roomId }: { roomId: string }) {
             )}
           </div>
 
-          <button
-            disabled
-            title={t("comingSoon")}
-            className="self-start h-9 px-4 rounded-md border border-border text-text-muted text-sm font-medium flex items-center gap-2 opacity-50 cursor-not-allowed shrink-0"
-          >
-            <ExportIcon />
-            {t("export")}
-          </button>
+          <ExportPdfMenu
+            room={room}
+            endedDate={endedDate}
+            participants={participants}
+            scoreboard={scoreboard}
+            actionCards={actionCards}
+            newActionItemsCount={newActionCards.length}
+            regularColumns={regularColumnsWithCards}
+          />
         </div>
 
         {participants.length > 0 && (
@@ -321,13 +326,11 @@ function SummaryContent({ roomId }: { roomId: string }) {
             />
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {regularCols.map((col) => (
+              {regularColumnsWithCards.map(({ column, cards }) => (
                 <ColumnSummary
-                  key={col.id}
-                  column={col}
-                  cards={sortByVotes(
-                    publishedCards.filter((c) => c.columnId === col.id),
-                  )}
+                  key={column.id}
+                  column={column}
+                  cards={cards}
                   isAnonymous={room.isAnonymous}
                   commentsByCardId={commentsByCardId}
                   participants={participants}

@@ -20,6 +20,19 @@ export interface ReleaseNote {
 // is a reliable source of the deployed version in this repo).
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.15.0",
+    tag: { en: "PDF Export", "pt-BR": "Exportar PDF" },
+    title: { en: "Export your retro as a PDF", "pt-BR": "Exporte sua retro em PDF" },
+    description: {
+      en: "Turn any ended retro into a polished PDF recap, in light or dark mode, ready to share with your team.",
+      "pt-BR": "Transforme qualquer retro encerrada em um PDF, no modo claro ou escuro, pronto para compartilhar com o time.",
+    },
+    image: {
+      en: "/whatsnew/exportpdf-en.png",
+      "pt-BR": "/whatsnew/exportpdf-ptbr.png",
+    },
+  },
+  {
     version: "1.12.0",
     tag: { en: "Likes", "pt-BR": "Curtidas" },
     title: { en: "Who liked it?", "pt-BR": "Quem curtiu?" },
