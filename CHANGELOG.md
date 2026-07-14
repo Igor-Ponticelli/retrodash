@@ -1,3 +1,9 @@
+## [1.15.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.14.0...v1.15.0) (2026-07-14)
+
+### Features
+
+* add pdf export for room summary in light and dark mode ([#44](https://github.com/Igor-Ponticelli/retrodash/issues/44)) ([4e65102](https://github.com/Igor-Ponticelli/retrodash/commit/4e651024aa1f0823d80a35b69af3769b02b1db5d))
+
 ## [1.14.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.13.1...v1.14.0) (2026-07-13)
 
 ### Features
