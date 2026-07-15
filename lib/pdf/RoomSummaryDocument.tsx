@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { Card, Participant, ScoreboardEntry } from "@/types";
 import type { PdfColors } from "./pdfColors";
@@ -5,7 +6,7 @@ import { PDF_COLORS } from "./pdfColors";
 import type { PdfStyles } from "./pdfStyles";
 import { createPdfStyles } from "./pdfStyles";
 import { PdfCircleIcon, PdfCheckIcon, PdfLoopIcon, PdfThumbUpIcon } from "./pdfIcons";
-import type { PdfTheme, PdfTranslations, RoomSummaryPdfData } from "./pdfTypes";
+import type { PdfSectionKey, PdfTheme, PdfTranslations, RoomSummaryPdfData } from "./pdfTypes";
 
 interface RoomSummaryDocumentProps extends RoomSummaryPdfData {
   theme: PdfTheme;
@@ -23,6 +24,7 @@ export function RoomSummaryDocument({
   theme,
   translations,
   sections,
+  sectionOrder,
   selectedColumnIds,
 }: RoomSummaryDocumentProps) {
   const colors = PDF_COLORS[theme];
@@ -35,11 +37,100 @@ export function RoomSummaryDocument({
   const filteredColumns = regularColumns.filter((g) => selectedColumnIds.includes(g.column.id));
   const retroRecapCount = filteredColumns.reduce((sum, g) => sum + g.cards.length, 0);
 
-  // No minPresenceAhead on the sections below: react-pdf demands that much
-  // *extra* room after a section's full height fits, or defers the whole
-  // section to the next page (blank space left behind) -- easy to hit now
-  // that any section can be last and retro recap got taller (sequential
-  // columns). wrap={false} on each card/row still prevents mid-item splits.
+  // Keyed by PdfSectionKey so sectionOrder (user-configurable) can render
+  // these in any order below -- none use minPresenceAhead: react-pdf demands
+  // that much *extra* room after a section's full height fits, or defers the
+  // whole section to the next page (blank space left behind), easy to hit
+  // now that any section can end up last and retro recap got taller
+  // (sequential columns). wrap={false} on each card/row still prevents
+  // mid-item splits.
+  const sectionContent: Record<PdfSectionKey, ReactNode> = {
+    participants: sections.participants && participants.length > 0 && (
+      <View style={styles.section}>
+        <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
+        <View style={styles.participantsRow}>
+          {participants.map((p) => (
+            <ParticipantChip key={p.id} participant={p} hostLabel={translations.host} styles={styles} />
+          ))}
+        </View>
+      </View>
+    ),
+    scoreboard: sections.scoreboard && !room.isAnonymous && (
+      <View style={styles.section}>
+        <SectionHeading
+          label={translations.scoreboard}
+          count={scoreboard.length}
+          accent
+          styles={styles}
+        />
+        {scoreboard.length === 0 ? (
+          <Text style={styles.emptyText}>{translations.scoreboardEmpty}</Text>
+        ) : (
+          <ScoreboardTable entries={scoreboard} translations={translations} styles={styles} />
+        )}
+      </View>
+    ),
+    actionItems: sections.actionItems && (
+      <View style={styles.section}>
+        <SectionHeading
+          label={translations.actionItems}
+          count={newActionItemsCount}
+          accent
+          styles={styles}
+        />
+        {actionCards.length === 0 ? (
+          <Text style={styles.emptyText}>{translations.noActionItems}</Text>
+        ) : (
+          <View>
+            {actionCards.map((card, i) => (
+              <PdfActionItemRow
+                key={card.id}
+                card={card}
+                isAnonymous={room.isAnonymous}
+                isFirst={i === 0}
+                isLast={i === actionCards.length - 1}
+                translations={translations}
+                colors={colors}
+                styles={styles}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    ),
+    retroRecap: sections.retroRecap && filteredColumns.length > 0 && (
+      <View style={styles.section}>
+        <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
+        <View style={styles.columnsGrid}>
+          {filteredColumns.map(({ column, cards }) => (
+            <View key={column.id} style={styles.columnBlock}>
+              <View style={styles.columnHeaderRow}>
+                <Text style={styles.columnTitle}>{column.title}</Text>
+                <Text style={styles.columnCount}>{cards.length}</Text>
+              </View>
+              {cards.length === 0 ? (
+                <Text style={styles.emptyText}>{translations.noCards}</Text>
+              ) : (
+                <View style={styles.cardsGrid}>
+                  {cards.map((card) => (
+                    <PdfSummaryCard
+                      key={card.id}
+                      card={card}
+                      isAnonymous={room.isAnonymous}
+                      translations={translations}
+                      colors={colors}
+                      styles={styles}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      </View>
+    ),
+  };
+
   return (
     <Document title={`${room.name} - RetroDash`} author="RetroDash">
       <Page size="A4" style={styles.page}>
@@ -60,93 +151,9 @@ export function RoomSummaryDocument({
           )}
         </View>
 
-        {sections.participants && participants.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
-            <View style={styles.participantsRow}>
-              {participants.map((p) => (
-                <ParticipantChip key={p.id} participant={p} hostLabel={translations.host} styles={styles} />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {sections.scoreboard && !room.isAnonymous && (
-          <View style={styles.section}>
-            <SectionHeading
-              label={translations.scoreboard}
-              count={scoreboard.length}
-              accent
-              styles={styles}
-            />
-            {scoreboard.length === 0 ? (
-              <Text style={styles.emptyText}>{translations.scoreboardEmpty}</Text>
-            ) : (
-              <ScoreboardTable entries={scoreboard} translations={translations} styles={styles} />
-            )}
-          </View>
-        )}
-
-        {sections.actionItems && (
-          <View style={styles.section}>
-            <SectionHeading
-              label={translations.actionItems}
-              count={newActionItemsCount}
-              accent
-              styles={styles}
-            />
-            {actionCards.length === 0 ? (
-              <Text style={styles.emptyText}>{translations.noActionItems}</Text>
-            ) : (
-              <View>
-                {actionCards.map((card, i) => (
-                  <PdfActionItemRow
-                    key={card.id}
-                    card={card}
-                    isAnonymous={room.isAnonymous}
-                    isFirst={i === 0}
-                    isLast={i === actionCards.length - 1}
-                    translations={translations}
-                    colors={colors}
-                    styles={styles}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {sections.retroRecap && filteredColumns.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
-            <View style={styles.columnsGrid}>
-              {filteredColumns.map(({ column, cards }) => (
-                <View key={column.id} style={styles.columnBlock}>
-                  <View style={styles.columnHeaderRow}>
-                    <Text style={styles.columnTitle}>{column.title}</Text>
-                    <Text style={styles.columnCount}>{cards.length}</Text>
-                  </View>
-                  {cards.length === 0 ? (
-                    <Text style={styles.emptyText}>{translations.noCards}</Text>
-                  ) : (
-                    <View style={styles.cardsGrid}>
-                      {cards.map((card) => (
-                        <PdfSummaryCard
-                          key={card.id}
-                          card={card}
-                          isAnonymous={room.isAnonymous}
-                          translations={translations}
-                          colors={colors}
-                          styles={styles}
-                        />
-                      ))}
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        {sectionOrder.map((key) => (
+          <Fragment key={key}>{sectionContent[key]}</Fragment>
+        ))}
 
         <Text
           style={styles.pageNumber}

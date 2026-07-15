@@ -313,6 +313,7 @@
     "exportConfigTitle": "Exportar PDF",
     "exportAppearance": "Aparência",
     "exportSections": "Seções",
+    "exportReorderSection": "Arrastar para reordenar: {section}",
     "exportColumns": "Colunas",
     "exportSelectAllColumns": "Selecionar todas",
     "exportDeselectAllColumns": "Desmarcar todas",

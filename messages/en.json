@@ -313,6 +313,7 @@
     "exportConfigTitle": "Export PDF",
     "exportAppearance": "Appearance",
     "exportSections": "Sections",
+    "exportReorderSection": "Drag to reorder: {section}",
     "exportColumns": "Columns",
     "exportSelectAllColumns": "Select all",
     "exportDeselectAllColumns": "Deselect all",

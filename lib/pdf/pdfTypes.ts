@@ -30,12 +30,21 @@ export interface RegularColumnGroup {
   cards: Card[];
 }
 
+export type PdfSectionKey = "participants" | "scoreboard" | "actionItems" | "retroRecap";
+
 export interface PdfSections {
   participants: boolean;
   scoreboard: boolean;
   actionItems: boolean;
   retroRecap: boolean;
 }
+
+export const DEFAULT_PDF_SECTION_ORDER: PdfSectionKey[] = [
+  "participants",
+  "scoreboard",
+  "actionItems",
+  "retroRecap",
+];
 
 export interface RoomSummaryPdfData {
   room: Room;
@@ -49,5 +58,6 @@ export interface RoomSummaryPdfData {
   newActionItemsCount: number;
   regularColumns: RegularColumnGroup[];
   sections: PdfSections;
+  sectionOrder: PdfSectionKey[];
   selectedColumnIds: string[];
 }
