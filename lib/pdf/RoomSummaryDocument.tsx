@@ -22,6 +22,8 @@ export function RoomSummaryDocument({
   regularColumns,
   theme,
   translations,
+  sections,
+  selectedColumnIds,
 }: RoomSummaryDocumentProps) {
   const colors = PDF_COLORS[theme];
   const styles = createPdfStyles(colors);
@@ -30,7 +32,8 @@ export function RoomSummaryDocument({
   // they're designed for, not their own tone.
   const logoSrc = theme === "dark" ? "/pdf/logotipo-dark.png" : "/pdf/logotipo-white.png";
 
-  const retroRecapCount = regularColumns.reduce((sum, g) => sum + g.cards.length, 0);
+  const filteredColumns = regularColumns.filter((g) => selectedColumnIds.includes(g.column.id));
+  const retroRecapCount = filteredColumns.reduce((sum, g) => sum + g.cards.length, 0);
 
   return (
     <Document title={`${room.name} - RetroDash`} author="RetroDash">
@@ -52,7 +55,7 @@ export function RoomSummaryDocument({
           )}
         </View>
 
-        {participants.length > 0 && (
+        {sections.participants && participants.length > 0 && (
           <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
             <View style={styles.participantsRow}>
@@ -63,7 +66,7 @@ export function RoomSummaryDocument({
           </View>
         )}
 
-        {!room.isAnonymous && (
+        {sections.scoreboard && !room.isAnonymous && (
           <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading
               label={translations.scoreboard}
@@ -79,38 +82,40 @@ export function RoomSummaryDocument({
           </View>
         )}
 
-        <View style={styles.section} minPresenceAhead={80}>
-          <SectionHeading
-            label={translations.actionItems}
-            count={newActionItemsCount}
-            accent
-            styles={styles}
-          />
-          {actionCards.length === 0 ? (
-            <Text style={styles.emptyText}>{translations.noActionItems}</Text>
-          ) : (
-            <View>
-              {actionCards.map((card, i) => (
-                <PdfActionItemRow
-                  key={card.id}
-                  card={card}
-                  isAnonymous={room.isAnonymous}
-                  isFirst={i === 0}
-                  isLast={i === actionCards.length - 1}
-                  translations={translations}
-                  colors={colors}
-                  styles={styles}
-                />
-              ))}
-            </View>
-          )}
-        </View>
+        {sections.actionItems && (
+          <View style={styles.section} minPresenceAhead={80}>
+            <SectionHeading
+              label={translations.actionItems}
+              count={newActionItemsCount}
+              accent
+              styles={styles}
+            />
+            {actionCards.length === 0 ? (
+              <Text style={styles.emptyText}>{translations.noActionItems}</Text>
+            ) : (
+              <View>
+                {actionCards.map((card, i) => (
+                  <PdfActionItemRow
+                    key={card.id}
+                    card={card}
+                    isAnonymous={room.isAnonymous}
+                    isFirst={i === 0}
+                    isLast={i === actionCards.length - 1}
+                    translations={translations}
+                    colors={colors}
+                    styles={styles}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
-        {regularColumns.length > 0 && (
+        {sections.retroRecap && filteredColumns.length > 0 && (
           <View style={styles.section} minPresenceAhead={80}>
             <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
             <View style={styles.columnsGrid}>
-              {regularColumns.map(({ column, cards }) => (
+              {filteredColumns.map(({ column, cards }) => (
                 <View key={column.id} style={styles.columnBlock}>
                   <View style={styles.columnHeaderRow}>
                     <Text style={styles.columnTitle}>{column.title}</Text>

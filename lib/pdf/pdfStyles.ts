@@ -267,13 +267,13 @@ export function createPdfStyles(colors: PdfColors) {
       fontSize: 8,
       color: colors.textMuted,
     },
-    columnsGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 14,
-    },
+    // Columns render one after another (full column, then the next), not
+    // side by side, so this wrapper no longer needs row/wrap layout -- kept
+    // as a named style for symmetry with columnBlock and future spacing hooks.
+    columnsGrid: {},
     columnBlock: {
-      width: "47%",
+      width: "100%",
+      marginBottom: 14,
     },
     columnHeaderRow: {
       flexDirection: "row",

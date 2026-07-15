@@ -30,6 +30,13 @@ export interface RegularColumnGroup {
   cards: Card[];
 }
 
+export interface PdfSections {
+  participants: boolean;
+  scoreboard: boolean;
+  actionItems: boolean;
+  retroRecap: boolean;
+}
+
 export interface RoomSummaryPdfData {
   room: Room;
   endedDate: string | null;
@@ -41,4 +48,6 @@ export interface RoomSummaryPdfData {
   // kept separate from actionCards.length to mirror that exactly.
   newActionItemsCount: number;
   regularColumns: RegularColumnGroup[];
+  sections: PdfSections;
+  selectedColumnIds: string[];
 }
