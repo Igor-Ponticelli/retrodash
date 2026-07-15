@@ -35,6 +35,11 @@ export function RoomSummaryDocument({
   const filteredColumns = regularColumns.filter((g) => selectedColumnIds.includes(g.column.id));
   const retroRecapCount = filteredColumns.reduce((sum, g) => sum + g.cards.length, 0);
 
+  // No minPresenceAhead on the sections below: react-pdf demands that much
+  // *extra* room after a section's full height fits, or defers the whole
+  // section to the next page (blank space left behind) -- easy to hit now
+  // that any section can be last and retro recap got taller (sequential
+  // columns). wrap={false} on each card/row still prevents mid-item splits.
   return (
     <Document title={`${room.name} - RetroDash`} author="RetroDash">
       <Page size="A4" style={styles.page}>
@@ -56,7 +61,7 @@ export function RoomSummaryDocument({
         </View>
 
         {sections.participants && participants.length > 0 && (
-          <View style={styles.section} minPresenceAhead={80}>
+          <View style={styles.section}>
             <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
             <View style={styles.participantsRow}>
               {participants.map((p) => (
@@ -67,7 +72,7 @@ export function RoomSummaryDocument({
         )}
 
         {sections.scoreboard && !room.isAnonymous && (
-          <View style={styles.section} minPresenceAhead={80}>
+          <View style={styles.section}>
             <SectionHeading
               label={translations.scoreboard}
               count={scoreboard.length}
@@ -83,7 +88,7 @@ export function RoomSummaryDocument({
         )}
 
         {sections.actionItems && (
-          <View style={styles.section} minPresenceAhead={80}>
+          <View style={styles.section}>
             <SectionHeading
               label={translations.actionItems}
               count={newActionItemsCount}
@@ -112,7 +117,7 @@ export function RoomSummaryDocument({
         )}
 
         {sections.retroRecap && filteredColumns.length > 0 && (
-          <View style={styles.section} minPresenceAhead={80}>
+          <View style={styles.section}>
             <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
             <View style={styles.columnsGrid}>
               {filteredColumns.map(({ column, cards }) => (
