@@ -129,16 +129,18 @@ export function RoomSummaryDocument({
                   {cards.length === 0 ? (
                     <Text style={styles.emptyText}>{translations.noCards}</Text>
                   ) : (
-                    cards.map((card) => (
-                      <PdfSummaryCard
-                        key={card.id}
-                        card={card}
-                        isAnonymous={room.isAnonymous}
-                        translations={translations}
-                        colors={colors}
-                        styles={styles}
-                      />
-                    ))
+                    <View style={styles.cardsGrid}>
+                      {cards.map((card) => (
+                        <PdfSummaryCard
+                          key={card.id}
+                          card={card}
+                          isAnonymous={room.isAnonymous}
+                          translations={translations}
+                          colors={colors}
+                          styles={styles}
+                        />
+                      ))}
+                    </View>
                   )}
                 </View>
               ))}

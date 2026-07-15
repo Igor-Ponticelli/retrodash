@@ -294,13 +294,18 @@ export function createPdfStyles(colors: PdfColors) {
       paddingVertical: 2,
       paddingHorizontal: 6,
     },
+    cardsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
     summaryCard: {
+      width: "47%",
       backgroundColor: colors.bgCard,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 5,
       padding: 8,
-      marginBottom: 6,
     },
     summaryCardText: {
       fontSize: 9,
