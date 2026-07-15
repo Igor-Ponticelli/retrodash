@@ -1,3 +1,9 @@
+## [1.16.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.3...v1.16.0) (2026-07-15)
+
+### Features
+
+* add PDF export configuration modal ([#48](https://github.com/Igor-Ponticelli/retrodash/issues/48)) ([a86af35](https://github.com/Igor-Ponticelli/retrodash/commit/a86af352f7dffdca8ebedfadc5ff78da8d3898a6))
+
 ## [1.15.3](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.2...v1.15.3) (2026-07-14)
 
 ### Bug Fixes
