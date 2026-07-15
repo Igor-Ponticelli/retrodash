@@ -1,6 +1,32 @@
 import { StyleSheet } from "@react-pdf/renderer";
 import type { PdfColors } from "./pdfColors";
 
+// Real, derived glue heights for orphan protection (minPresenceAhead props
+// in RoomSummaryDocument.tsx) -- each is computed from the actual style
+// values below (padding, border, avatar size, font size/line height), not
+// an arbitrary guess, so a section's title/header only renders where its
+// first content item is guaranteed to fit right after it.
+
+// participantChip: paddingVertical 4*2 + borderWidth 1*2 + avatarCircle height 16
+export const PARTICIPANT_CHIP_HEIGHT = 26;
+// tableRow: paddingVertical 6*2 + borderTopWidth 1 + avatarCircle height 16
+export const SCOREBOARD_ROW_HEIGHT = 29;
+// tableHeaderRow: paddingVertical 6*2 + borderTopWidth 1 + tableHeaderCell line height (~8)
+const SCOREBOARD_HEAD_HEIGHT = 21;
+// The scoreboard title must clear the table header AND its first row combined,
+// not just the header -- otherwise the title can pass its own check while the
+// separately-evaluated header-vs-row check fails and defers elsewhere, orphaning
+// the title one level removed.
+export const SCOREBOARD_HEAD_GLUE_HEIGHT = SCOREBOARD_HEAD_HEIGHT + SCOREBOARD_ROW_HEIGHT;
+// actionItemRow: paddingVertical 10*2 + borderTopWidth 1, plus a deliberately
+// generous allowance for wrapped multi-line text + identity row + badges (real
+// card height varies a lot and isn't knowable ahead of render, so this biases
+// toward occasionally deferring a bit early over ever orphaning a long first card)
+export const ACTION_ITEM_ROW_HEIGHT = 90;
+// columnHeaderRow height (~19) + summaryCard height, generously assuming
+// 2-line card text (real card height varies with text length)
+export const RETRO_CARD_ROW_HEIGHT = 80;
+
 // Layout/spacing is defined once here; only color values vary by theme
 // (passed in from pdfColors.ts), so the light/dark documents never drift
 // apart structurally.

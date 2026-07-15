@@ -4,7 +4,14 @@ import type { Card, Participant, ScoreboardEntry } from "@/types";
 import type { PdfColors } from "./pdfColors";
 import { PDF_COLORS } from "./pdfColors";
 import type { PdfStyles } from "./pdfStyles";
-import { createPdfStyles } from "./pdfStyles";
+import {
+  createPdfStyles,
+  ACTION_ITEM_ROW_HEIGHT,
+  PARTICIPANT_CHIP_HEIGHT,
+  RETRO_CARD_ROW_HEIGHT,
+  SCOREBOARD_HEAD_GLUE_HEIGHT,
+  SCOREBOARD_ROW_HEIGHT,
+} from "./pdfStyles";
 import { PdfCircleIcon, PdfCheckIcon, PdfLoopIcon, PdfThumbUpIcon } from "./pdfIcons";
 import type { PdfSectionKey, PdfTheme, PdfTranslations, RoomSummaryPdfData } from "./pdfTypes";
 
@@ -38,16 +45,24 @@ export function RoomSummaryDocument({
   const retroRecapCount = filteredColumns.reduce((sum, g) => sum + g.cards.length, 0);
 
   // Keyed by PdfSectionKey so sectionOrder (user-configurable) can render
-  // these in any order below -- none use minPresenceAhead: react-pdf demands
-  // that much *extra* room after a section's full height fits, or defers the
-  // whole section to the next page (blank space left behind), easy to hit
-  // now that any section can end up last and retro recap got taller
-  // (sequential columns). wrap={false} on each card/row still prevents
+  // these in any order below. Each SectionHeading gets a minPresenceAhead
+  // sized to the real height of "one following item" (see pdfStyles.ts) --
+  // small buffer on a small node, unlike the old whole-section minPresenceAhead
+  // that caused blank pages (see commit f7cf611). Since a heading and
+  // whatever comes after it are the only two children of the section's View,
+  // react-pdf defers both together if the heading doesn't clear that buffer,
+  // which also covers the empty-state text branches below for free -- no
+  // separate handling needed. wrap={false} on each card/row still prevents
   // mid-item splits.
   const sectionContent: Record<PdfSectionKey, ReactNode> = {
     participants: sections.participants && participants.length > 0 && (
       <View style={styles.section}>
-        <SectionHeading label={translations.participants} count={participants.length} styles={styles} />
+        <SectionHeading
+          label={translations.participants}
+          count={participants.length}
+          styles={styles}
+          minPresenceAhead={PARTICIPANT_CHIP_HEIGHT}
+        />
         <View style={styles.participantsRow}>
           {participants.map((p) => (
             <ParticipantChip key={p.id} participant={p} hostLabel={translations.host} styles={styles} />
@@ -62,6 +77,7 @@ export function RoomSummaryDocument({
           count={scoreboard.length}
           accent
           styles={styles}
+          minPresenceAhead={SCOREBOARD_HEAD_GLUE_HEIGHT}
         />
         {scoreboard.length === 0 ? (
           <Text style={styles.emptyText}>{translations.scoreboardEmpty}</Text>
@@ -77,6 +93,7 @@ export function RoomSummaryDocument({
           count={newActionItemsCount}
           accent
           styles={styles}
+          minPresenceAhead={ACTION_ITEM_ROW_HEIGHT}
         />
         {actionCards.length === 0 ? (
           <Text style={styles.emptyText}>{translations.noActionItems}</Text>
@@ -100,11 +117,17 @@ export function RoomSummaryDocument({
     ),
     retroRecap: sections.retroRecap && filteredColumns.length > 0 && (
       <View style={styles.section}>
-        <SectionHeading label={translations.retroRecap} count={retroRecapCount} styles={styles} />
+        <SectionHeading
+          label={translations.retroRecap}
+          count={retroRecapCount}
+          styles={styles}
+          minPresenceAhead={RETRO_CARD_ROW_HEIGHT}
+        />
         <View style={styles.columnsGrid}>
           {filteredColumns.map(({ column, cards }) => (
             <View key={column.id} style={styles.columnBlock}>
-              <View style={styles.columnHeaderRow}>
+              <PdfGlueSentinel />
+              <View style={styles.columnHeaderRow} minPresenceAhead={RETRO_CARD_ROW_HEIGHT}>
                 <Text style={styles.columnTitle}>{column.title}</Text>
                 <Text style={styles.columnCount}>{cards.length}</Text>
               </View>
@@ -170,20 +193,38 @@ function SectionHeading({
   count,
   accent = false,
   styles,
+  minPresenceAhead,
 }: {
   label: string;
   count: number;
   accent?: boolean;
   styles: PdfStyles;
+  minPresenceAhead: number;
 }) {
   return (
-    <View style={styles.sectionHeaderRow}>
-      <Text style={accent ? [styles.sectionTitle, styles.sectionTitleAccent] : styles.sectionTitle}>
-        {label}
-      </Text>
-      <Text style={styles.sectionCount}>{count}</Text>
-    </View>
+    <>
+      <PdfGlueSentinel />
+      <View style={styles.sectionHeaderRow} minPresenceAhead={minPresenceAhead}>
+        <Text style={accent ? [styles.sectionTitle, styles.sectionTitleAccent] : styles.sectionTitle}>
+          {label}
+        </Text>
+        <Text style={styles.sectionCount}>{count}</Text>
+      </View>
+    </>
   );
+}
+
+// react-pdf's minPresenceAhead only breaks a node when there's a previous
+// non-fixed sibling already placed in that same split pass (see
+// shouldBreak/breakingImprovesPresence in @react-pdf/layout) -- for a node
+// that's the very first child of its parent, that's always false, so
+// minPresenceAhead on a first child (every heading here) is silently a
+// no-op. This zero-height spacer gives the heading a previous sibling so its
+// minPresenceAhead actually takes effect. Verified empirically: without it,
+// a heading can render alone with its content pushed entirely to the next
+// page; with it, heading and content defer together as intended.
+function PdfGlueSentinel() {
+  return <View style={{ height: 0 }} />;
 }
 
 function PdfAvatarInitial({ name, styles }: { name: string; styles: PdfStyles }) {
@@ -234,7 +275,8 @@ function ScoreboardTable({
 }) {
   return (
     <View>
-      <View style={styles.tableHeaderRow}>
+      <PdfGlueSentinel />
+      <View style={styles.tableHeaderRow} minPresenceAhead={SCOREBOARD_ROW_HEIGHT}>
         <Text style={[styles.tableHeaderCell, styles.colRank]}>#</Text>
         <Text style={[styles.tableHeaderCell, styles.colParticipant]}>{translations.participants}</Text>
         <Text style={[styles.tableHeaderCell, styles.colStat]}>{translations.scoreboardCards}</Text>
