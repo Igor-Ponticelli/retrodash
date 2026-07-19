@@ -14,12 +14,14 @@ import {
   setActionStatus,
   setCardAssignee,
   setCardLink,
+  setCardCategory,
   publishCard,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import type { Card, Participant } from "@/types";
+import { CategoryBadge } from "@/components/org/CategoryBadge";
+import type { Card, Category, Participant } from "@/types";
 
 interface CardProps {
   card: Card;
@@ -35,6 +37,7 @@ interface CardProps {
   onAddLinkedActionItem?: (text: string) => Promise<void>;
   linkedCard?: Card;
   participants?: Participant[];
+  categories?: Category[];
   linkingActive?: boolean;
   isLinkTarget?: boolean;
   onPickLinkTarget?: (card: Card) => void;
@@ -56,6 +59,7 @@ export function CardItem({
   onAddLinkedActionItem,
   linkedCard,
   participants = [],
+  categories = [],
   linkingActive = false,
   isLinkTarget = false,
   onPickLinkTarget,
@@ -551,6 +555,14 @@ export function CardItem({
           <div
             className={`flex items-center gap-2 ${isAnonymous ? "ml-auto" : ""}`}
           >
+            {!isDraft && categories.length > 0 && (
+              <CategoryPicker
+                roomId={roomId}
+                card={card}
+                categories={categories}
+                t={t}
+              />
+            )}
             {!isDraft && (
               <CardComments
                 roomId={roomId}
@@ -677,6 +689,83 @@ function ActionStatusSegment({
         </button>
       ))}
     </div>
+  );
+}
+
+function CategoryPicker({
+  roomId,
+  card,
+  categories,
+  t,
+}: {
+  roomId: string;
+  card: Card;
+  categories: Category[];
+  t: ReturnType<typeof import("next-intl").useTranslations<"board">>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handlePick = async (category: Category | null) => {
+    setSaving(true);
+    try {
+      await setCardCategory(
+        roomId,
+        card.id,
+        category && { id: category.id, title: category.title, colorId: category.colorId },
+      );
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="shrink-0"
+      >
+        {card.categoryId && card.categoryTitle ? (
+          <CategoryBadge title={card.categoryTitle} colorId={card.categoryColorId} />
+        ) : (
+          <span className="flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-medium text-text-muted hover:text-text-primary border border-dashed border-border transition-colors cursor-pointer">
+            {t("pickCategory")}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <Modal title={t("pickCategory")} onClose={() => setOpen(false)} size="sm">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                disabled={saving}
+                onClick={() => handlePick(category)}
+                className={`rounded-lg border transition-colors cursor-pointer ${
+                  card.categoryId === category.id ? "border-accent-primary" : "border-transparent"
+                }`}
+              >
+                <CategoryBadge title={category.title} colorId={category.colorId} />
+              </button>
+            ))}
+          </div>
+          {card.categoryId && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handlePick(null)}
+              className="mt-4 w-full text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+            >
+              {t("noCategory")}
+            </button>
+          )}
+        </Modal>
+      )}
+    </>
   );
 }
 
