@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
 import { participantsQuery } from "@/lib/firestore";
 import { createRemountCache } from "@/lib/remountCache";
+import { onSnapshotWithRetry } from "@/lib/onSnapshotWithRetry";
 import { useAuth } from "@/hooks/useAuth";
 import type { Participant } from "@/types";
 
@@ -22,12 +22,18 @@ export function useParticipants(roomId: string) {
     if (!user) return;
     const key = `${roomId}:${user.uid}`;
 
-    const unsub = onSnapshot(participantsQuery(roomId), (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Participant);
-      setParticipants(data);
-      participantsCache.set(key, data);
-      setLoading(false);
-    });
+    const unsub = onSnapshotWithRetry(
+      participantsQuery(roomId),
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Participant);
+        setParticipants(data);
+        participantsCache.set(key, data);
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+      },
+    );
     return unsub;
   }, [roomId, user]);
 

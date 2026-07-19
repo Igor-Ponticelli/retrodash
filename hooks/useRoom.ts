@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { columnsQuery } from "@/lib/firestore";
 import { createRemountCache } from "@/lib/remountCache";
+import { onSnapshotWithRetry } from "@/lib/onSnapshotWithRetry";
 import { useAuth } from "@/hooks/useAuth";
 import type { Room, Column } from "@/types";
 
@@ -34,21 +35,35 @@ export function useRoom(roomId: string) {
       if (roomReady && columnsReady) setLoading(false);
     };
 
-    const unsubRoom = onSnapshot(doc(db, "rooms", roomId), (snap) => {
-      latestRoom = snap.exists() ? ({ id: snap.id, ...snap.data() } as Room) : null;
-      setRoom(latestRoom);
-      roomCache.set(key, { room: latestRoom, columns: latestColumns });
-      roomReady = true;
-      trySetLoaded();
-    });
+    const unsubRoom = onSnapshotWithRetry(
+      doc(db, "rooms", roomId),
+      (snap) => {
+        latestRoom = snap.exists() ? ({ id: snap.id, ...snap.data() } as Room) : null;
+        setRoom(latestRoom);
+        roomCache.set(key, { room: latestRoom, columns: latestColumns });
+        roomReady = true;
+        trySetLoaded();
+      },
+      () => {
+        roomReady = true;
+        trySetLoaded();
+      },
+    );
 
-    const unsubColumns = onSnapshot(columnsQuery(roomId), (snap) => {
-      latestColumns = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Column));
-      setColumns(latestColumns);
-      roomCache.set(key, { room: latestRoom, columns: latestColumns });
-      columnsReady = true;
-      trySetLoaded();
-    });
+    const unsubColumns = onSnapshotWithRetry(
+      columnsQuery(roomId),
+      (snap) => {
+        latestColumns = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Column));
+        setColumns(latestColumns);
+        roomCache.set(key, { room: latestRoom, columns: latestColumns });
+        columnsReady = true;
+        trySetLoaded();
+      },
+      () => {
+        columnsReady = true;
+        trySetLoaded();
+      },
+    );
 
     return () => {
       unsubRoom();
