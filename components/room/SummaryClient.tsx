@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
+import { roomPath, roomSummaryPath } from "@/lib/roomPath";
+import { retryOnPermissionDenied } from "@/lib/retryOnPermissionDenied";
 import {
   getParticipant,
   joinRoom,
@@ -42,46 +44,64 @@ import {
 } from "@/components/ui/Icons";
 import type { Card, CardComment, Column, Participant, Room } from "@/types";
 
-export function SummaryClient({ roomId }: { roomId: string }) {
+export function SummaryClient({ roomId, orgId }: { roomId: string; orgId?: string }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [gate, setGate] = useState<"checking" | "ready">("checking");
 
   useEffect(() => {
     if (authLoading || !user) return;
-    (async () => {
+    let cancelled = false;
+
+    retryOnPermissionDenied(async () => {
       const snap = await getDoc(doc(db, "rooms", roomId));
       if (!snap.exists()) {
         router.replace("/dashboard");
         return;
       }
       const room = { id: snap.id, ...snap.data() } as Room;
+      if (cancelled) return;
+
+      // Reached via the personal /room/[roomId]/summary route but this room
+      // actually belongs to an org — bounce to the canonical org-scoped path
+      // (see RoomClient's identical fix for why this can't just fall through).
+      if (!orgId && room.orgId) {
+        router.replace(roomSummaryPath(room));
+        return;
+      }
 
       if (room.status !== "ended") {
-        router.replace(`/room/${roomId}`);
+        router.replace(roomPath(room));
         return;
       }
 
       const participant = await getParticipant(roomId, user.uid);
       if (participant) {
-        setGate("ready");
+        if (!cancelled) setGate("ready");
         return;
       }
 
-      if (room.isPublic) {
+      // Org rooms: OrgGate already verified membership before this rendered.
+      if (orgId || room.isPublic) {
         await joinRoom(
           roomId,
           user.uid,
           user.displayName ?? "Member",
           user.photoURL ?? null,
         );
-        setGate("ready");
+        if (!cancelled) setGate("ready");
         return;
       }
 
-      router.replace(`/room/${roomId}`);
-    })();
-  }, [authLoading, user, roomId, router]);
+      router.replace(roomPath(room));
+    }).catch(() => {
+      if (!cancelled) router.replace("/dashboard");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user, roomId, router, orgId]);
 
   if (authLoading || gate === "checking") return <SummarySkeleton />;
   return <SummaryContent roomId={roomId} />;
@@ -403,7 +423,7 @@ function ActionItemRow({
   allCards: Card[];
   comments: CardComment[];
   chainLinks?: ChainLink[];
-  originInfo?: { roomId: string; roomName: string; roomStatus: Room["status"] } | null;
+  originInfo?: { roomId: string; roomName: string; roomStatus: Room["status"]; roomOrgId?: string } | null;
   participants: Participant[];
   currentUserId?: string;
 }) {
@@ -501,7 +521,11 @@ function ActionItemRow({
           <p className="text-[11px] text-text-muted mt-1.5">
             {t("originallyFrom")}{" "}
             <Link
-              href={originInfo.roomStatus === "ended" ? `/room/${originInfo.roomId}/summary` : `/room/${originInfo.roomId}`}
+              href={
+                originInfo.roomStatus === "ended"
+                  ? roomSummaryPath({ id: originInfo.roomId, orgId: originInfo.roomOrgId })
+                  : roomPath({ id: originInfo.roomId, orgId: originInfo.roomOrgId })
+              }
               className="text-accent-primary hover:underline"
             >
               {originInfo.roomName}
@@ -514,7 +538,11 @@ function ActionItemRow({
             {chainLinks.map((link) => (
               <Link
                 key={`${link.roomId}-${link.cardId}`}
-                href={link.roomStatus === "ended" ? `/room/${link.roomId}/summary` : `/room/${link.roomId}`}
+                href={
+                  link.roomStatus === "ended"
+                    ? roomSummaryPath({ id: link.roomId, orgId: link.roomOrgId })
+                    : roomPath({ id: link.roomId, orgId: link.roomOrgId })
+                }
                 className="inline-flex items-center gap-1 text-accent-primary hover:underline"
               >
                 {link.cardStatus === "done" ? (
