@@ -5,9 +5,12 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useRooms } from "@/hooks/useRooms";
+import { useOrgRooms } from "@/hooks/useOrgRooms";
+import { useMyOrgRole } from "@/hooks/useMyOrgRole";
 import { useCarryOver } from "@/hooks/useCarryOver";
 import { hashPassword } from "@/lib/auth";
 import { createRoom } from "@/lib/firestore";
+import { roomPath } from "@/lib/roomPath";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -28,14 +31,27 @@ type ColumnEntry = { id: string; title: string };
 
 interface NewRoomModalProps {
   onClose: () => void;
+  // Set only when opened from /org/[orgId]: forces a public, passwordless
+  // room gated by org membership instead of a password.
+  orgId?: string;
 }
 
-export function NewRoomModal({ onClose }: NewRoomModalProps) {
+export function NewRoomModal({ onClose, orgId }: NewRoomModalProps) {
   const { user } = useAuth();
   const router = useRouter();
   const t = useTranslations("newRoom");
   const { rooms, loading: roomsLoading } = useRooms();
-  const endedRooms = rooms.filter((r) => r.status === "ended");
+  const { rooms: orgRooms, loading: orgRoomsLoading } = useOrgRooms(orgId);
+  const { member: myOrgMember } = useMyOrgRole(orgId);
+  const isOrgManager = myOrgMember?.role === "leader" || myOrgMember?.role === "admin";
+
+  // Org admins/leaders can carry over pending/keep items from ANY ended room
+  // in the org, not just rooms they personally created — a plain "own rooms"
+  // list (useRooms, ownerId-scoped) would miss rooms other admins created.
+  const endedRooms = (orgId && isOrgManager ? orgRooms : rooms).filter(
+    (r) => r.status === "ended",
+  );
+  const carryOverRoomsLoading = orgId ? orgRoomsLoading : roomsLoading;
   const carryOver = useCarryOver(endedRooms);
 
   const DEFAULT_COLUMNS: ColumnEntry[] = [
@@ -45,7 +61,7 @@ export function NewRoomModal({ onClose }: NewRoomModalProps) {
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(!!orgId);
   const [isAnonymous, setAnonymous] = useState(false);
   const [columns, setColumns] = useState<ColumnEntry[]>(DEFAULT_COLUMNS);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,6 +112,7 @@ export function NewRoomModal({ onClose }: NewRoomModalProps) {
         ownerName: user.displayName ?? "Facilitator",
         ownerPhotoURL: user.photoURL ?? null,
         isAnonymous,
+        orgId,
         columnTitles: columns.map((c) => c.title.trim()),
         actionItemsTitle: t("actionItems"),
         initialActionItems: carryOver.enabled ? carryOver.selectedItems : [],
@@ -193,7 +210,7 @@ export function NewRoomModal({ onClose }: NewRoomModalProps) {
             className="w-full"
             onClick={() => {
               onClose();
-              router.push(`/room/${created.roomId}`);
+              router.push(roomPath({ id: created.roomId, orgId }));
             }}
           >
             {t("openRoom")}
@@ -218,48 +235,56 @@ export function NewRoomModal({ onClose }: NewRoomModalProps) {
               />
             </Field>
 
-            <div>
-              <p className="text-text-primary text-sm font-medium mb-2">{t("visibility")}</p>
-              <div className="flex rounded-md border border-border overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setIsPublic(false)}
-                  className={`flex-1 flex items-center justify-center cursor-pointer gap-2 py-2.5 text-sm font-medium transition-colors border-r border-border ${
-                    !isPublic
-                      ? "bg-accent-violet/10 text-accent-violet"
-                      : "text-text-muted hover:text-text-secondary"
-                  }`}
-                >
-                  <LockIcon size={14} />
-                  {t("private")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsPublic(true)}
-                  className={`flex-1 flex items-center justify-center cursor-pointer gap-2 py-2.5 text-sm font-medium transition-colors ${
-                    isPublic
-                      ? "bg-accent-primary/10 text-accent-primary"
-                      : "text-text-muted hover:text-text-secondary"
-                  }`}
-                >
-                  <GlobeIcon size={14} />
-                  {t("public")}
-                </button>
-              </div>
-              <p className="text-text-muted text-xs mt-1.5">
-                {isPublic ? t("publicHint") : t("privateHint")}
+            {orgId ? (
+              <p className="text-text-muted text-xs -mt-2 px-3 py-2 rounded-md border border-dashed border-border bg-bg-elevated/50">
+                {t("orgRoomHint")}
               </p>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-text-primary text-sm font-medium mb-2">{t("visibility")}</p>
+                  <div className="flex rounded-md border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setIsPublic(false)}
+                      className={`flex-1 flex items-center justify-center cursor-pointer gap-2 py-2.5 text-sm font-medium transition-colors border-r border-border ${
+                        !isPublic
+                          ? "bg-accent-violet/10 text-accent-violet"
+                          : "text-text-muted hover:text-text-secondary"
+                      }`}
+                    >
+                      <LockIcon size={14} />
+                      {t("private")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPublic(true)}
+                      className={`flex-1 flex items-center justify-center cursor-pointer gap-2 py-2.5 text-sm font-medium transition-colors ${
+                        isPublic
+                          ? "bg-accent-primary/10 text-accent-primary"
+                          : "text-text-muted hover:text-text-secondary"
+                      }`}
+                    >
+                      <GlobeIcon size={14} />
+                      {t("public")}
+                    </button>
+                  </div>
+                  <p className="text-text-muted text-xs mt-1.5">
+                    {isPublic ? t("publicHint") : t("privateHint")}
+                  </p>
+                </div>
 
-            {!isPublic && (
-              <Field label={t("password")} error={errors.password} hint={t("passwordHint")}>
-                <Input
-                  type="password"
-                  placeholder={t("passwordPlaceholder")}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field>
+                {!isPublic && (
+                  <Field label={t("password")} error={errors.password} hint={t("passwordHint")}>
+                    <Input
+                      type="password"
+                      placeholder={t("passwordPlaceholder")}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </Field>
+                )}
+              </>
             )}
 
             <div className="flex items-center justify-between gap-4 py-1">
@@ -327,7 +352,7 @@ export function NewRoomModal({ onClose }: NewRoomModalProps) {
             <CarryOverSection
               carryOver={carryOver}
               endedRooms={endedRooms}
-              roomsLoading={roomsLoading}
+              roomsLoading={carryOverRoomsLoading}
             />
 
             <Divider />
