@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/hooks/useAuth";
 import { useRooms } from "@/hooks/useRooms";
 import { useJoinedRooms } from "@/hooks/useJoinedRooms";
+import { useMyOrgRooms } from "@/hooks/useMyOrgRooms";
+import { useMyOrganizations } from "@/hooks/useMyOrganizations";
 import { useWhatsNew } from "@/hooks/useWhatsNew";
 import { Navbar } from "@/components/ui/Navbar";
 import { Button } from "@/components/ui/Button";
@@ -11,14 +14,26 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { JoinRoomModal } from "@/components/room/JoinRoomModal";
 import { NewRoomModal } from "@/components/room/NewRoomModal";
 import { WhatsNewModal } from "@/components/whatsnew/WhatsNewModal";
+import { roomSummaryPath } from "@/lib/roomPath";
+import { OrgAvatar } from "@/components/org/OrgAvatar";
+import { Link } from "@/i18n/navigation";
 import { DeleteRoomModal } from "./DeleteRoomModal";
 import { PlusIcon, BoardIcon } from "@/components/ui/Icons";
 import { RoomCard } from "./RoomCard";
 import type { Room } from "@/types";
 
 export function DashboardClient() {
-  const { rooms, loading } = useRooms();
-  const { joinedRooms, loading: joinedLoading } = useJoinedRooms();
+  const { user } = useAuth();
+  const { rooms: allRooms, loading } = useRooms();
+  const { joinedRooms: allJoinedRooms, loading: joinedLoading } = useJoinedRooms();
+  // Org rooms have their own home at /org/[orgId] — this dashboard stays
+  // personal-rooms-only for "My Rooms"/"Joined Rooms", exactly as it behaved
+  // before Fase 6. Org rooms/orgs get their own dedicated sections below.
+  const rooms = allRooms.filter((r) => !r.orgId);
+  const joinedRooms = allJoinedRooms.filter((r) => !r.orgId);
+  const { rooms: orgRooms, loading: orgRoomsLoading } = useMyOrgRooms(user?.uid);
+  const { organizations, loading: organizationsLoading } = useMyOrganizations(user?.uid);
+  const orgsById = new Map(organizations.map((org) => [org.id, org]));
   const { loading: whatsNewLoading, unseenNotes } = useWhatsNew();
   const [joinOpen, setJoinOpen] = useState(false);
   const [newRoomOpen, setNewRoomOpen] = useState(false);
@@ -71,7 +86,7 @@ export function DashboardClient() {
                 <RoomCard
                   key={room.id}
                   room={room}
-                  href={room.status === "ended" ? `/room/${room.id}/summary` : undefined}
+                  href={room.status === "ended" ? roomSummaryPath(room) : undefined}
                   onDelete={room.status === "ended" ? () => setRoomToDelete(room) : undefined}
                 />
               ))}
@@ -105,6 +120,69 @@ export function DashboardClient() {
             <JoinedRoomsSection rooms={joinedRooms} />
           )}
         </section>
+
+        {/* ── Organization rooms ────────────────────────────── */}
+        {(organizationsLoading || organizations.length > 0) && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-text-primary tracking-tight">
+                {t("orgRooms")}
+              </h2>
+              <p className="text-text-secondary text-sm mt-1">{t("orgRoomsSubtitle")}</p>
+            </div>
+
+            {orgRoomsLoading ? (
+              <RoomsSkeleton />
+            ) : orgRooms.length === 0 ? (
+              <p className="text-text-muted text-sm">{t("noOrgRooms")}</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {orgRooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    href={room.status === "ended" ? roomSummaryPath(room) : undefined}
+                    org={room.orgId ? orgsById.get(room.orgId) : undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── My organizations ─────────────────────────────── */}
+        {(organizationsLoading || organizations.length > 0) && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-text-primary tracking-tight">
+                {t("myOrganizations")}
+              </h2>
+            </div>
+
+            {organizationsLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[0, 1].map((i) => (
+                  <Skeleton key={i} className="h-16 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {organizations.map((org) => (
+                  <Link
+                    key={org.id}
+                    href={`/org/${org.id}`}
+                    className="flex items-center gap-3 bg-bg-card border border-border rounded-lg px-4 py-3 hover:border-accent-violet/40 dark:hover:border-accent-cyan/40 transition-colors"
+                  >
+                    <OrgAvatar colorId={org.colorId} name={org.name} size={40} />
+                    <span className="text-text-primary font-semibold text-sm truncate">
+                      {org.name}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       {joinOpen && <JoinRoomModal onClose={() => setJoinOpen(false)} />}
@@ -144,7 +222,7 @@ function JoinedRoomsSection({ rooms }: { rooms: Room[] }) {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {ended.map((room) => (
-              <RoomCard key={room.id} room={room} href={`/room/${room.id}/summary`} />
+              <RoomCard key={room.id} room={room} href={roomSummaryPath(room)} />
             ))}
           </div>
         </div>
