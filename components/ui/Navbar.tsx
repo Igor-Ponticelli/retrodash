@@ -125,7 +125,7 @@ export function Navbar({
 
   return (
     <>
-      <header className="bg-bg-surface border-b border-border px-4 sm:px-6 h-16 flex items-center justify-between shrink-0">
+      <header className="sticky top-0 z-30 bg-bg-surface border-b border-border px-4 sm:px-6 h-16 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4 min-w-0">
           {logoHref ? (
             <Link href={logoHref} className="shrink-0">
