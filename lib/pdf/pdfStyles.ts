@@ -50,6 +50,25 @@ export function createPdfStyles(colors: PdfColors) {
     titleBlock: {
       marginBottom: 22,
     },
+    // Color is overridden per-org at render time (org.colorId, same palette
+    // as categories) -- orgLabelRow/orgLabel only define the shared shape.
+    orgLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginBottom: 6,
+    },
+    orgDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    orgLabel: {
+      fontSize: 9,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
     roomName: {
       fontSize: 20,
       fontWeight: 700,

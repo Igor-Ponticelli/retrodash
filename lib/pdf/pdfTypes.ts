@@ -1,4 +1,4 @@
-import type { Card, Column, Participant, Room, ScoreboardEntry } from "@/types";
+import type { Card, Column, Organization, Participant, Room, ScoreboardEntry } from "@/types";
 
 export type PdfTheme = "light" | "dark";
 
@@ -48,6 +48,7 @@ export const DEFAULT_PDF_SECTION_ORDER: PdfSectionKey[] = [
 
 export interface RoomSummaryPdfData {
   room: Room;
+  organization: Pick<Organization, "name" | "colorId"> | null;
   endedDate: string | null;
   participants: Participant[];
   scoreboard: ScoreboardEntry[];

@@ -23,6 +23,7 @@ interface RoomSummaryDocumentProps extends RoomSummaryPdfData {
 
 export function RoomSummaryDocument({
   room,
+  organization,
   endedDate,
   participants,
   scoreboard,
@@ -164,6 +165,19 @@ export function RoomSummaryDocument({
         </View>
 
         <View style={styles.titleBlock}>
+          {organization && (
+            <View style={styles.orgLabelRow}>
+              <View
+                style={[
+                  styles.orgDot,
+                  { backgroundColor: getPdfCategoryColor(organization.colorId) ?? colors.accentPrimary },
+                ]}
+              />
+              <Text style={[styles.orgLabel, { color: getPdfCategoryColor(organization.colorId) ?? colors.accentPrimary }]}>
+                {organization.name}
+              </Text>
+            </View>
+          )}
           <Text style={styles.roomName}>{room.name}</Text>
           {room.description && (
             <Text style={styles.description}>&ldquo;{room.description}&rdquo;</Text>
