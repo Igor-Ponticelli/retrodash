@@ -50,6 +50,25 @@ export function createPdfStyles(colors: PdfColors) {
     titleBlock: {
       marginBottom: 22,
     },
+    // Color is overridden per-org at render time (org.colorId, same palette
+    // as categories) -- orgLabelRow/orgLabel only define the shared shape.
+    orgLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginBottom: 6,
+    },
+    orgDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    orgLabel: {
+      fontSize: 9,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
     roomName: {
       fontSize: 20,
       fontWeight: 700,
@@ -258,6 +277,20 @@ export function createPdfStyles(colors: PdfColors) {
       paddingVertical: 1,
       paddingHorizontal: 4,
       marginBottom: 4,
+      alignSelf: "flex-start",
+    },
+    // Color/borderColor are overridden per-category at render time (see
+    // PdfCategoryBadge in RoomSummaryDocument.tsx) -- this only defines the
+    // shared shape, same split as the on-screen CategoryBadge component.
+    categoryBadge: {
+      fontSize: 7,
+      fontWeight: 600,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderRadius: 3,
+      paddingVertical: 1,
+      paddingHorizontal: 4,
+      marginTop: 3,
       alignSelf: "flex-start",
     },
     identityRow: {

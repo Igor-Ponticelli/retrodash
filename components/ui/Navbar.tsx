@@ -9,6 +9,7 @@ import { lockScroll, unlockScroll } from "@/lib/scrollLock";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyActionItems } from "@/hooks/useMyActionItems";
 import { useWhatsNew } from "@/hooks/useWhatsNew";
+import { roomPath, roomSummaryPath } from "@/lib/roomPath";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { RetroDashLogo, RetroDashIcon } from "@/components/ui/RetroDashLogo";
@@ -124,7 +125,7 @@ export function Navbar({
 
   return (
     <>
-      <header className="bg-bg-surface border-b border-border px-4 sm:px-6 h-16 flex items-center justify-between shrink-0">
+      <header className="sticky top-0 z-30 bg-bg-surface border-b border-border px-4 sm:px-6 h-16 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4 min-w-0">
           {logoHref ? (
             <Link href={logoHref} className="shrink-0">
@@ -299,6 +300,13 @@ export function Navbar({
                   <p className="text-text-muted text-sm mt-0.5">{user.email}</p>
                 )}
               </div>
+              <Link
+                href="/profile"
+                onClick={startCloseDrawer}
+                className="text-accent-primary text-xs font-medium hover:underline"
+              >
+                {t("viewProfile")}
+              </Link>
             </div>
 
             <div className="mx-6 h-px bg-border shrink-0" />
@@ -398,10 +406,14 @@ function MyActionItemsCollapse({ onNavigate }: { onNavigate: () => void }) {
                     {label}
                   </p>
                   <ul className="space-y-0.5">
-                    {groupItems.map(({ card, roomId, roomName, roomStatus }) => (
+                    {groupItems.map(({ card, roomId, roomName, roomStatus, roomOrgId }) => (
                       <li key={`${roomId}-${card.id}`}>
                         <Link
-                          href={roomStatus === "ended" ? `/room/${roomId}/summary` : `/room/${roomId}`}
+                          href={
+                            roomStatus === "ended"
+                              ? roomSummaryPath({ id: roomId, orgId: roomOrgId })
+                              : roomPath({ id: roomId, orgId: roomOrgId })
+                          }
                           onClick={onNavigate}
                           className="flex items-start gap-1.5 px-1.5 py-1 -mx-1.5 rounded-md hover:bg-bg-elevated transition-colors"
                         >

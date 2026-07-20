@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { BoardColumn } from "@/components/board/Column";
-import type { Column, Card, Participant } from "@/types";
+import type { Column, Card, Category, Participant } from "@/types";
 
 interface BoardProps {
   columns: Column[];
@@ -13,7 +13,9 @@ interface BoardProps {
   isFacilitator: boolean;
   isRetroLive?: boolean;
   filterAuthorId?: string | null;
+  filterCategoryId?: string | null;
   participants?: Participant[];
+  categories?: Category[];
   linkingActive?: boolean;
   pendingLinkTarget?: { id: string; text: string } | null;
   linkingSourceCardId?: string | null;
@@ -34,7 +36,9 @@ export function Board({
   isFacilitator,
   isRetroLive = true,
   filterAuthorId,
+  filterCategoryId,
   participants = [],
+  categories = [],
   linkingActive = false,
   pendingLinkTarget = null,
   linkingSourceCardId = null,
@@ -54,13 +58,21 @@ export function Board({
     (c) => c.published !== false || c.authorId === userId,
   );
 
-  const filteredCards = filterAuthorId
+  const authorFilteredCards = filterAuthorId
     ? visibleCards.filter(
         (c) =>
           c.authorId === filterAuthorId ||
           (c.published === false && c.authorId === userId),
       )
     : visibleCards;
+
+  const filteredCards = filterCategoryId
+    ? authorFilteredCards.filter(
+        (c) =>
+          c.categoryId === filterCategoryId ||
+          (c.published === false && c.authorId === userId),
+      )
+    : authorFilteredCards;
 
   const actionItemsColumnId = actionCol?.id;
   const colProps = {
@@ -74,6 +86,7 @@ export function Board({
     actionItemsColumnId,
     allVisibleCards: visibleCards,
     participants,
+    categories,
     linkingActive,
     pendingLinkTarget,
     linkingSourceCardId,

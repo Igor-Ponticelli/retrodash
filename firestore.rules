@@ -41,11 +41,70 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/rooms/$(roomId)).data.isAnonymous == true;
     }
 
+    // ── Organizations (Fase 6) ──────────────────────────────────────
+
+    function isOrgMember(orgId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function orgMemberRole(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isOrgLeader(orgId) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && orgMemberRole(orgId) == "admin";
+    }
+
+    // "Can manage org rooms" — admin OR leader. Members can only view.
+    function isOrgManager(orgId) {
+      return isOrgAdmin(orgId) || isOrgLeader(orgId);
+    }
+
+    // Bootstrap variant, same rationale as isFacilitatorAfter: needed only
+    // when the org doc and its first member doc are written in the same batch.
+    function isOrgLeaderAfter(orgId) {
+      return isAuth() &&
+        getAfter(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid;
+    }
+
     // ── Rooms ──────────────────────────────────────────────────────
 
     match /rooms/{roomId} {
       allow get: if isAuth();
-      allow list: if isAuth() && resource.data.ownerId == request.auth.uid;
+
+      // Owner's own rooms, OR any org room (needed for /org/[orgId]'s room
+      // list). Deliberately NOT gated on isOrgMember(resource.data.orgId)
+      // here: for a `list` query, Firestore's rule validator can prove a
+      // direct `resource.data.field == queryValue` comparison is consistent
+      // with the query's own where() clause, but it does NOT propagate that
+      // same proof through a custom function call fed by a resource.data
+      // field (unlike isOrgManager(get(room).data.orgId) in the
+      // columns/cards rules below, whose argument comes from the roomId
+      // PATH parameter — fixed for the whole query — not from resource.data,
+      // so it needs no such substitution). Passing resource.data.orgId into
+      // isOrgMember() here made Firestore reject the ENTIRE query with
+      // permission-denied, confirmed via two real repros (right after
+      // joining an org, loading its room list for the first time as a
+      // plain, non-owner member).
+      //
+      // Net effect of this widening: any authenticated user who already
+      // knows a specific orgId can list that org's room names/statuses (not
+      // board content — cards/columns stay gated behind
+      // isParticipant/isOrgManager below). orgId is a random Firestore
+      // auto-id, not enumerable, and organizations/{orgId} itself is
+      // already get-able by any authenticated user for the same reason (the
+      // "Join {org}?" prompt needs to render before membership exists) — so
+      // this doesn't open a new category of exposure, just extends the same
+      // already-accepted trade-off from a room's own org.
+      allow list: if isAuth() &&
+        (resource.data.ownerId == request.auth.uid ||
+         resource.data.get('orgId', null) != null);
 
       allow create: if isAuth() &&
         request.resource.data.ownerId == request.auth.uid &&
@@ -54,14 +113,35 @@ service cloud.firestore {
         request.resource.data.name.size() > 0 &&
         request.resource.data.name.size() <= 100 &&
         request.resource.data.password is string &&
-        (
-          (request.resource.data.isPublic && request.resource.data.password == "") ||
-          (!request.resource.data.isPublic && request.resource.data.password.size() == 64)
-        ) &&
         request.resource.data.isPublic is bool &&
-        request.resource.data.isAnonymous is bool;
+        request.resource.data.isAnonymous is bool &&
+        (
+          (!request.resource.data.keys().hasAny(['orgId']) &&
+           (
+             (request.resource.data.isPublic && request.resource.data.password == "") ||
+             (!request.resource.data.isPublic && request.resource.data.password.size() == 64)
+           ))
+          ||
+          // Org rooms: always public/passwordless, gate is org membership
+          // instead. Restricted to admin/leader ("criar sala" is not a
+          // plain-member permission).
+          (request.resource.data.keys().hasAny(['orgId']) &&
+           request.resource.data.orgId is string &&
+           request.resource.data.isPublic == true &&
+           request.resource.data.password == "" &&
+           isOrgManager(request.resource.data.orgId))
+        );
 
-      allow update: if isFacilitator(roomId) &&
+      // Widened to admin/leader of the room's own org, alongside the
+      // existing facilitator check — deliberately covers BOTH status
+      // transitions (open AND close), not just "encerrar", since the rule
+      // can't cheaply tell which transition is happening without materially
+      // more complexity, and there's no product reason to let an org
+      // manager close a retro they can't open.
+      allow update: if (
+          isFacilitator(roomId) ||
+          (resource.data.get('orgId', null) != null && isOrgManager(resource.data.orgId))
+        ) &&
         request.resource.data.ownerId == resource.data.ownerId &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'description']) &&
         request.resource.data.status in ["waiting", "active", "ended"] &&
@@ -71,20 +151,232 @@ service cloud.firestore {
            request.resource.data.description.size() <= 500)
         );
 
-      allow delete: if isAuth() && resource.data.ownerId == request.auth.uid;
+      // Org rooms: any org admin/leader can delete, not just the specific
+      // member who happened to create it — otherwise a room becomes
+      // undeletable the moment its creator is no longer around/willing,
+      // which the personal-room "only the owner" rule never had to consider.
+      allow delete: if isAuth() &&
+        (resource.data.ownerId == request.auth.uid ||
+         (resource.data.get('orgId', null) != null && isOrgManager(resource.data.orgId)));
+    }
+
+    // ── Organizations ──────────────────────────────────────────────
+
+    match /organizations/{orgId} {
+      // Name/color aren't sensitive, and a non-member needs to read them to
+      // render the "Join {org}?" invite-confirmation screen before they're a
+      // member. The real access boundary is members/categories/rooms below.
+      allow get: if isAuth();
+      allow list: if false; // no org directory; always fetched by known id
+
+      allow create: if isAuth() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 100 &&
+        request.resource.data.colorId is string &&
+        request.resource.data.colorId in
+          ["red", "orange", "amber", "lime", "emerald", "cyan", "blue", "violet", "pink", "slate"] &&
+        request.resource.data.keys().hasOnly(['name', 'ownerId', 'colorId', 'createdAt']);
+
+      allow update: if isOrgLeader(orgId) && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']) &&
+         request.resource.data.name is string &&
+         request.resource.data.name.size() > 0 &&
+         request.resource.data.name.size() <= 100)
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['colorId']) &&
+         request.resource.data.colorId in
+           ["red", "orange", "amber", "lime", "emerald", "cyan", "blue", "violet", "pink", "slate"])
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeInviteId']) &&
+         (request.resource.data.activeInviteId == null || request.resource.data.activeInviteId is string))
+        ||
+        // Leadership transfer, authorized by the CURRENT leader (pre-batch
+        // isOrgLeader — both docs already exist, no bootstrap problem).
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerId']) &&
+         exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.resource.data.ownerId)))
+      );
+
+      // No collectionGroup("rooms") query exists that would need this, and
+      // deleting an org never cascades into rooms that reference its orgId
+      // (see deleteOrganization() comment in lib/firestore.ts) — this is a
+      // client-side guard only, rules can't express "no room references me".
+      allow delete: if isOrgLeader(orgId);
+    }
+
+    match /organizations/{orgId}/members/{memberId} {
+      // memberId == request.auth.uid is required here, not just isOrgMember:
+      // useMyOrgRole() reads a user's OWN prospective membership doc to
+      // determine whether they're a member at all (e.g. right after
+      // clicking an invite link, before they've joined). isOrgMember(orgId)
+      // itself is defined as "does this exact doc exist" — so gating get()
+      // on isOrgMember alone makes it impossible for a genuine non-member to
+      // ever get a clean "you're not a member" result: the read itself gets
+      // rejected with permission-denied instead. Allowing memberId==self
+      // unconditionally is safe: it only ever lets someone resolve their OWN
+      // status, never another member's.
+      allow get: if isOrgMember(orgId) || memberId == request.auth.uid;
+      allow list: if isOrgMember(orgId);
+
+      allow create: if isAuth() &&
+        request.resource.data.userId == memberId &&
+        request.resource.data.displayName is string &&
+        request.resource.data.displayName.size() > 0 &&
+        request.resource.data.displayName.size() <= 200 &&
+        (
+          // Bootstrap: org creator becomes its own first "leader" member,
+          // same batch as the organizations/{orgId} create above.
+          (memberId == request.auth.uid &&
+           request.resource.data.role == "leader" &&
+           isOrgLeaderAfter(orgId))
+          ||
+          // Leader adds someone directly. No UI ships for this in Fase 6 (no
+          // user directory exists in this app to look up a uid) — kept for
+          // forward-compat, costs nothing to allow.
+          (isOrgLeader(orgId) && request.resource.data.role in ["member", "admin"])
+          ||
+          // Admin/leader approves a pending join request: creates the
+          // member doc on someone ELSE's behalf. Tied to a real
+          // joinRequests doc existing for this exact uid (checked via
+          // exists(), which sees pre-batch state, so this still holds even
+          // when the same batch also deletes that request doc) — an
+          // approver can't fabricate membership for an arbitrary uid with
+          // no request trail behind it.
+          (isOrgManager(orgId) &&
+           request.resource.data.role == "member" &&
+           exists(/databases/$(database)/documents/organizations/$(orgId)/joinRequests/$(memberId)))
+        );
+
+      allow update: if isOrgLeader(orgId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) &&
+        request.resource.data.role in ["member", "admin", "leader"] &&
+        (
+          request.resource.data.role != "leader" ||
+          // Promoting to "leader" is only valid as part of the same transfer
+          // batch that flips organizations/{orgId}.ownerId to this memberId.
+          getAfter(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == memberId
+        ) &&
+        (
+          // The CURRENT owner's own member doc can't be demoted away from
+          // "leader" except as part of the same batch handing ownerId to
+          // someone else — otherwise organizations/{orgId}.ownerId (the
+          // real authority source read by isOrgLeader) and this doc's role
+          // label silently desync: the org would keep showing this person
+          // as "member"/"admin" while they retain full leader authority.
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId != memberId ||
+          request.resource.data.role == "leader" ||
+          getAfter(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId != memberId
+        );
+
+      // Leader removes anyone; anyone removes themself (leave org). A leader
+      // leaving without transferring first is a client-side UX guard, not a
+      // rule-level restriction — same tradeoff already accepted for the
+      // equivalent room/participant case.
+      allow delete: if isOrgLeader(orgId) || memberId == request.auth.uid;
+    }
+
+    match /organizations/{orgId}/joinRequests/{requestUserId} {
+      // A non-member reads their OWN prospective request the same way they
+      // read their own prospective member doc above (get is fine either
+      // way; members-only for reading someone else's).
+      allow get: if isOrgManager(orgId) || requestUserId == request.auth.uid;
+      allow list: if isOrgManager(orgId);
+
+      allow create: if isAuth() &&
+        requestUserId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.displayName is string &&
+        request.resource.data.displayName.size() > 0 &&
+        request.resource.data.displayName.size() <= 200 &&
+        (request.resource.data.photoURL is string || request.resource.data.photoURL == null) &&
+        request.resource.data.inviteId is string &&
+        get(/databases/$(database)/documents/organizations/$(orgId)/invites/$(request.resource.data.inviteId)).data.active == true &&
+        request.resource.data.keys().hasOnly(['userId', 'displayName', 'photoURL', 'requestedAt', 'inviteId']);
+
+      // Never editable — approve/reject only ever create-the-member-doc or
+      // delete this request, never mutate it in place.
+      allow update: if false;
+
+      // Admin/leader rejects (or the requester withdraws their own
+      // request). Approval also deletes this doc, in the same batch as
+      // creating the member doc above.
+      allow delete: if isOrgManager(orgId) || requestUserId == request.auth.uid;
+    }
+
+    match /organizations/{orgId}/invites/{inviteId} {
+      // Never listable — an invite id/link must already be known to even
+      // attempt a read, same trust model as a Discord invite code.
+      allow get: if isAuth();
+      allow list: if false;
+
+      allow create: if isOrgLeader(orgId) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.active == true &&
+        request.resource.data.keys().hasOnly(['createdBy', 'createdAt', 'active']);
+
+      // Only ever revoked (true -> false); regenerating creates a new doc
+      // instead of reusing this one, so a leaked old link can never be
+      // reactivated by writing to it.
+      allow update: if isOrgLeader(orgId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) &&
+        resource.data.active == true &&
+        request.resource.data.active == false;
+
+      allow delete: if false; // revoke via update, keeps createdBy/createdAt as an audit trail
+    }
+
+    match /organizations/{orgId}/categories/{categoryId} {
+      allow get: if isOrgMember(orgId);
+      allow list: if isOrgMember(orgId);
+
+      // Category management (create/rename/delete) is leader-only, same
+      // tier as managing members — "gerenciar categorias" sits under Líder
+      // in the permission table, explicitly excluded from admin. Linking a
+      // category onto a card is a separate, wider permission (see the cards
+      // update rule below), same as assigning an action item.
+      allow create: if isOrgLeader(orgId) &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 60 &&
+        request.resource.data.colorId is string &&
+        request.resource.data.colorId in
+          ["red", "orange", "amber", "lime", "emerald", "cyan", "blue", "violet", "pink", "slate"] &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['title', 'colorId', 'createdBy', 'createdAt']);
+
+      allow update: if isOrgLeader(orgId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'colorId']) &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 60 &&
+        request.resource.data.colorId in
+          ["red", "orange", "amber", "lime", "emerald", "cyan", "blue", "violet", "pink", "slate"];
+
+      allow delete: if isOrgLeader(orgId);
     }
 
     // ── Columns ────────────────────────────────────────────────────
 
     match /rooms/{roomId}/columns/{columnId} {
-      allow read: if isParticipant(roomId);
+      // Org-wide carry-over: an org admin/leader browsing pending/keep items
+      // from ANY ended room in their org (not just rooms they personally
+      // facilitated) needs to read that room's columns/cards even when
+      // they're not a participant of it. Scoped to that specific room's own
+      // orgId, read once via get() — same cost as isAnonymousRoom() above.
+      allow read: if isParticipant(roomId) ||
+        (get(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) != null &&
+         isOrgManager(get(/databases/$(database)/documents/rooms/$(roomId)).data.orgId));
       allow write: if isFacilitator(roomId) || isFacilitatorAfter(roomId);
     }
 
     // ── Cards ──────────────────────────────────────────────────────
 
     match /rooms/{roomId}/cards/{cardId} {
-      allow read: if isParticipant(roomId);
+      // Same org-manager carry-over exception as columns above.
+      allow read: if isParticipant(roomId) ||
+        (get(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) != null &&
+         isOrgManager(get(/databases/$(database)/documents/rooms/$(roomId)).data.orgId));
 
       allow create: if
         (isParticipant(roomId) || isFacilitatorAfter(roomId)) &&
@@ -186,6 +478,25 @@ service cloud.firestore {
             request.resource.data.linkedCardText.size() <= 2000)
          ))
         ||
+        // Any participant sets or clears an org category on a published
+        // card (Fase 6, org rooms only — categoryId must reference a real
+        // category of THIS room's own org). categoryTitle/categoryColorId
+        // are a denormalized snapshot, same pattern as linkedCardText: if
+        // the category is later renamed/deleted, already-linked cards keep
+        // showing their snapshot as-is.
+        (resource.data.published == true &&
+         request.resource.data.diff(resource.data).affectedKeys() == ['categoryId', 'categoryTitle', 'categoryColorId'].toSet() &&
+         (
+           (!request.resource.data.keys().hasAny(['categoryId', 'categoryTitle', 'categoryColorId']))
+           ||
+           (request.resource.data.categoryId is string &&
+            get(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) != null &&
+            exists(/databases/$(database)/documents/organizations/$(get(/databases/$(database)/documents/rooms/$(roomId)).data.orgId)/categories/$(request.resource.data.categoryId)) &&
+            request.resource.data.categoryTitle is string &&
+            request.resource.data.categoryTitle.size() <= 60 &&
+            request.resource.data.categoryColorId is string)
+         ))
+        ||
         // Any participant votes — set-based validation prevents forged vote counts.
         // votedByProfiles is a denormalized name/photo snapshot per voter, keyed by
         // uid (same trust level as assigneeName/assigneePhotoURL below: content isn't
@@ -244,7 +555,17 @@ service cloud.firestore {
         // because a carry-over chain is always owned end-to-end by the same
         // single user today (carry-over sources are restricted to the
         // acting user's own ended rooms, and ownerId is immutable).
-        (isFacilitator(roomId) &&
+        //
+        // Org-wide carry-over adds a second path: an org admin/leader
+        // importing from an origin room they didn't personally facilitate
+        // needs this same write authorized too, or the "carried to another
+        // room" badge/link on the origin room's summary silently stops
+        // appearing for cross-user imports within the org (the write is
+        // wrapped in Promise.allSettled client-side, so it fails quietly
+        // rather than erroring the whole room creation).
+        ((isFacilitator(roomId) ||
+          (get(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) != null &&
+           isOrgManager(get(/databases/$(database)/documents/rooms/$(roomId)).data.orgId))) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['carriedToRooms']) &&
          request.resource.data.carriedToRooms is list &&
          request.resource.data.carriedToRooms.size() >= resource.data.get('carriedToRooms', []).size())
@@ -280,7 +601,20 @@ service cloud.firestore {
     // same participants can already read, so no extra field validation.
 
     match /rooms/{roomId}/scoreboard/{docId} {
-      allow read: if isParticipant(roomId);
+      // Org-wide all-time ranking (/org/[orgId]/scoreboards) is visible to
+      // any org member, not just admins/leaders — "Membro: só visualiza"
+      // implies viewing is fine, only managing isn't. EXCLUDES anonymous
+      // rooms: this doc is userId-keyed (real identity + points), and
+      // without this check any org member could read an anonymous room's
+      // scoreboard directly even if they were never a participant in it —
+      // a real deanonymization path that getOrgScoreboard()'s client-side
+      // filter alone doesn't close (client-side filtering is UX, not a
+      // security boundary). Matches the same isAnonymous exclusion already
+      // applied when building the all-time ranking.
+      allow read: if isParticipant(roomId) ||
+        (get(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) != null &&
+         get(/databases/$(database)/documents/rooms/$(roomId)).data.isAnonymous != true &&
+         isOrgMember(get(/databases/$(database)/documents/rooms/$(roomId)).data.orgId));
       allow write: if isParticipant(roomId);
     }
 
@@ -294,7 +628,15 @@ service cloud.firestore {
       );
 
       // getAfter() validates the facilitator role is consistent with the room's ownerId
-      // even when both documents are written in the same createRoom() batch
+      // even when both documents are written in the same createRoom() batch.
+      //
+      // Personal rooms keep their exact pre-Fase-6 "member" branch (no
+      // room-level check at all — private-room protection relies on the
+      // client needing the password before ever calling joinRoom()). Org
+      // rooms get a real rule-enforced check instead, since there's no
+      // per-room password to gate them the way private personal rooms are:
+      // anyone who resolves an org room's id could otherwise auto-join it,
+      // same as a public personal room, bypassing org membership entirely.
       allow create: if isAuth() &&
         participantId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid &&
@@ -302,7 +644,11 @@ service cloud.firestore {
         request.resource.data.displayName.size() > 0 &&
         request.resource.data.displayName.size() <= 200 &&
         (
-          request.resource.data.role == "member" ||
+          (request.resource.data.role == "member" &&
+           (
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.get('orgId', null) == null ||
+             isOrgMember(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.orgId)
+           )) ||
           (request.resource.data.role == "facilitator" &&
            getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.ownerId == request.auth.uid)
         );
@@ -337,7 +683,20 @@ service cloud.firestore {
     // (Navbar "my action items" list). Scoped to cards the caller is
     // assigned to — no broader cross-room card visibility is granted.
     match /{path=**}/cards/{cardId} {
-      allow read: if isAuth() && resource.data.assigneeId == request.auth.uid;
+      // Widened for the Profile page (Fase 6), which lists cards the user is
+      // either assignee OR author of, across rooms. Every card already has
+      // authorId set since day one (no new field, no migration): this only
+      // ever lets someone read a card THEY wrote — no new exposure of
+      // another person's card, including in anonymous rooms.
+      allow read: if isAuth() &&
+        (resource.data.assigneeId == request.auth.uid || resource.data.authorId == request.auth.uid);
+    }
+
+    // ── CollectionGroup: members ─────────────────────────────────────
+    // Powers "orgs I belong to" (Profile page). Same shape as the
+    // participants collectionGroup rule above.
+    match /{path=**}/members/{memberId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
     }
 
     // ── Feedback ───────────────────────────────────────────────────
@@ -358,8 +717,10 @@ service cloud.firestore {
     // ── Users ──────────────────────────────────────────────────────
     // Self-owned profile doc, created lazily by getOrCreateUserProfile() on
     // first read. Only ever accessed by direct doc ID (never queried), so
-    // "get" is enough — no "list" is granted. Fase 4 (Organizations) will
-    // add more fields here and will need to extend this field allowlist.
+    // "get" is enough — no "list" is granted. Org membership/profile (Fase 6)
+    // is intentionally NOT stored here — see the organizations/members
+    // collections above, always read via direct membership doc or the
+    // members collectionGroup, never denormalized onto this doc.
 
     match /users/{userId} {
       allow get: if isAuth() && userId == request.auth.uid;

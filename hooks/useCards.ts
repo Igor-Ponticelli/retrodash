@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
 import { cardsQuery } from "@/lib/firestore";
 import { createRemountCache } from "@/lib/remountCache";
+import { onSnapshotWithRetry } from "@/lib/onSnapshotWithRetry";
 import { useAuth } from "@/hooks/useAuth";
 import type { Card } from "@/types";
 
@@ -22,12 +22,18 @@ export function useCards(roomId: string) {
     if (!user) return;
     const key = `${roomId}:${user.uid}`;
 
-    const unsubscribe = onSnapshot(cardsQuery(roomId), (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Card));
-      setCards(data);
-      cardsCache.set(key, data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshotWithRetry(
+      cardsQuery(roomId),
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Card));
+        setCards(data);
+        cardsCache.set(key, data);
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+      },
+    );
 
     return unsubscribe;
   }, [roomId, user]);

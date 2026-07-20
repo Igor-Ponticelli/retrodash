@@ -9,9 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
+import { useCategories } from "@/hooks/useCategories";
+import { useMyOrgRole } from "@/hooks/useMyOrgRole";
 import { createRemountCache } from "@/lib/remountCache";
+import { retryOnPermissionDenied } from "@/lib/retryOnPermissionDenied";
+import { roomPath, roomSummaryPath } from "@/lib/roomPath";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
+import { CategoryBadge } from "@/components/org/CategoryBadge";
 import {
   updateRoomStatus,
   subscribeToParticipant,
@@ -33,11 +38,15 @@ import type { Room, Card } from "@/types";
 
 interface RoomClientProps {
   roomId: string;
+  // Set only by /org/[orgId]/room/[roomId], which already verified org
+  // membership via OrgGate before rendering this. When present, this
+  // component trusts it and skips the password/isPublic gate entirely.
+  orgId?: string;
 }
 
 const gateCache = createRemountCache<true>(); // stores only the "ready" outcome
 
-export function RoomClient({ roomId }: RoomClientProps) {
+export function RoomClient({ roomId, orgId }: RoomClientProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const gateKey = user ? `${roomId}:${user.uid}` : null;
@@ -49,23 +58,39 @@ export function RoomClient({ roomId }: RoomClientProps) {
   useEffect(() => {
     if (authLoading || !user) return;
     const key = `${roomId}:${user.uid}`;
-    (async () => {
+    let cancelled = false;
+
+    retryOnPermissionDenied(async () => {
       const snap = await getDoc(doc(db, "rooms", roomId));
       if (!snap.exists()) {
         router.replace("/dashboard");
         return;
       }
       const room = { id: snap.id, ...snap.data() } as Room;
+      if (cancelled) return;
       setRoomData(room);
+
+      // Reached via the personal /room/[roomId] route but this room actually
+      // belongs to an org — bounce to the canonical org-scoped path instead
+      // of running the personal gate below (which would otherwise let
+      // anyone who resolves this id auto-join it like a public room,
+      // bypassing org membership entirely).
+      if (!orgId && room.orgId) {
+        router.replace(roomPath(room));
+        return;
+      }
 
       const participant = await getParticipant(roomId, user.uid);
       if (participant) {
         gateCache.set(key, true);
-        setGate("ready");
+        if (!cancelled) setGate("ready");
         return;
       }
 
-      if (room.isPublic) {
+      // Org rooms: OrgGate already verified membership before this component
+      // rendered, so trust the orgId prop and auto-join directly — no
+      // isPublic/password check needed (org rooms are always public anyway).
+      if (orgId || room.isPublic) {
         await joinRoom(
           roomId,
           user.uid,
@@ -73,13 +98,23 @@ export function RoomClient({ roomId }: RoomClientProps) {
           user.photoURL ?? null,
         );
         gateCache.set(key, true);
-        setGate("ready");
+        if (!cancelled) setGate("ready");
         return;
       }
 
-      setGate("needs-password");
-    })();
-  }, [authLoading, user, roomId, router]);
+      if (!cancelled) setGate("needs-password");
+    }).catch(() => {
+      // Exhausted retries on a persistent permission-denied (not the
+      // transient just-signed-in token propagation gap this guards
+      // against) — fail safe instead of throwing an unhandled rejection
+      // that surfaces as a raw runtime error overlay.
+      if (!cancelled) router.replace("/dashboard");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user, roomId, router, orgId]);
 
   if (authLoading || gate === "checking") return <BoardSkeleton />;
 
@@ -122,6 +157,10 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterAuthorId, setFilterAuthorId] = useState<string | null>(null);
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
+  const { categories } = useCategories(room?.orgId);
+  const { member: orgMember } = useMyOrgRole(room?.orgId);
   const [linkingMode, setLinkingMode] = useState<
     { kind: "composer" } | { kind: "card"; cardId: string } | null
   >(null);
@@ -169,11 +208,19 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
 
   useEffect(() => {
     if (room?.status === "ended") {
-      router.push(`/room/${roomId}/summary`);
+      router.push(roomSummaryPath({ id: roomId, orgId: room.orgId }));
     }
-  }, [room?.status, roomId, router]);
+  }, [room?.status, room?.orgId, roomId, router]);
 
   const isFacilitator = userId === room?.ownerId;
+  // Starting/ending a retro is also open to any org admin/leader, not just
+  // whoever happens to own the room doc — mirrors the rooms.update rule,
+  // which already allows isOrgManager(orgId) alongside isFacilitator(roomId).
+  // Board-level permissions (publishing others' cards, assigning roles, etc.)
+  // stay tied strictly to isFacilitator: those remain governed by the
+  // participant doc's role=="facilitator" in rules, untouched by org role.
+  const canManageRetro =
+    isFacilitator || orgMember?.role === "leader" || orgMember?.role === "admin";
   const loading = roomLoading || cardsLoading;
 
   const handleStartRetro = () => updateRoomStatus(roomId, "active");
@@ -222,21 +269,31 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
                 <FilterIcon active={filterAuthorId !== null} />
               </button>
             )}
+            {room.orgId && categories.length > 0 && (
+              <button
+                onClick={() => setCategoryFilterOpen(true)}
+                title={t("filterByCategory")}
+                aria-label={t("filterByCategory")}
+                className="relative w-8 h-8 flex items-center justify-center rounded-md border border-transparent text-text-muted hover:border-border hover:bg-bg-card hover:text-text-secondary transition-colors cursor-pointer"
+              >
+                <FilterIcon active={filterCategoryId !== null} />
+              </button>
+            )}
           </>
         }
         actions={
           <>
-            {isFacilitator && room.status === "waiting" && (
+            {canManageRetro && room.status === "waiting" && (
               <Button variant="cyan" size="sm" onClick={handleStartRetro}>
                 {t("startRetro")}
               </Button>
             )}
-            {isFacilitator && room.status === "active" && (
+            {canManageRetro && room.status === "active" && (
               <EndRetroButton loading={endingRetro} onClick={handleEndRetro} />
             )}
             {room.status === "ended" && (
               <Link
-                href={`/room/${roomId}/summary`}
+                href={roomSummaryPath(room)}
                 className="h-8 px-4 rounded-md text-xs font-semibold border border-border text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors flex items-center"
               >
                 {t("viewSummary")}
@@ -263,7 +320,9 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
           isFacilitator={isFacilitator}
           isRetroLive={room.status === "active"}
           filterAuthorId={filterAuthorId}
+          filterCategoryId={filterCategoryId}
           participants={participants}
+          categories={categories}
           linkingActive={linkingActive}
           pendingLinkTarget={pendingLinkTarget}
           linkingSourceCardId={linkingSourceCardId}
@@ -324,6 +383,45 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
               onClick={() => {
                 setFilterAuthorId(null);
                 setFilterOpen(false);
+              }}
+              className="mt-4 w-full text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+            >
+              {t("clearFilter")}
+            </button>
+          )}
+        </Modal>
+      )}
+
+      {categoryFilterOpen && (
+        <Modal
+          title={t("filterByCategory")}
+          onClose={() => setCategoryFilterOpen(false)}
+          size="sm"
+        >
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => {
+              const isActive = filterCategoryId === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => {
+                    setFilterCategoryId(isActive ? null : category.id);
+                    setCategoryFilterOpen(false);
+                  }}
+                  className={`p-0.5 rounded-lg border transition-colors cursor-pointer ${
+                    isActive ? "border-accent-primary" : "border-transparent hover:border-border"
+                  }`}
+                >
+                  <CategoryBadge title={category.title} colorId={category.colorId} />
+                </button>
+              );
+            })}
+          </div>
+          {filterCategoryId !== null && (
+            <button
+              onClick={() => {
+                setFilterCategoryId(null);
+                setCategoryFilterOpen(false);
               }}
               className="mt-4 w-full text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer"
             >

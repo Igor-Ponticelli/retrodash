@@ -280,6 +280,20 @@ export function TrashIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+export function PencilIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M9.5 1.5a1.415 1.415 0 0 1 2 2l-7 7-2.5.75.75-2.5 6.75-7.25Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function CheckBoxIcon() {
   return (
     <svg

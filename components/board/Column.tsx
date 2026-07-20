@@ -6,7 +6,7 @@ import { addCard } from "@/lib/firestore";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { CardItem } from "@/components/board/Card";
-import type { Column, Card, Participant } from "@/types";
+import type { Column, Card, Category, Participant } from "@/types";
 
 interface ColumnProps {
   column: Column;
@@ -21,6 +21,7 @@ interface ColumnProps {
   actionItemsColumnId?: string;
   allVisibleCards?: Card[];
   participants?: Participant[];
+  categories?: Category[];
   linkingActive?: boolean;
   pendingLinkTarget?: { id: string; text: string } | null;
   linkingSourceCardId?: string | null;
@@ -43,6 +44,7 @@ export function BoardColumn({
   actionItemsColumnId,
   allVisibleCards = [],
   participants = [],
+  categories = [],
   linkingActive = false,
   pendingLinkTarget = null,
   linkingSourceCardId = null,
@@ -213,6 +215,7 @@ export function BoardColumn({
                     : undefined
                 }
                 participants={participants}
+                categories={categories}
                 linkingActive={linkingActive}
                 isLinkTarget={!column.isActionItems && card.published !== false}
                 onPickLinkTarget={
@@ -263,6 +266,7 @@ export function BoardColumn({
                     }
                     linkedCard={undefined}
                     participants={participants}
+                categories={categories}
                     linkingActive={linkingActive}
                     isLinkTarget={false}
                   />
