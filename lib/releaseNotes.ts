@@ -20,6 +20,22 @@ export interface ReleaseNote {
 // is a reliable source of the deployed version in this repo).
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.17.0",
+    tag: { en: "Organizations", "pt-BR": "Organizações" },
+    title: {
+      en: "Organizations are here, with a profile page too",
+      "pt-BR": "Chegaram as organizações, com página de perfil",
+    },
+    description: {
+      en: "Create an organization, invite your team with a link, and run retros in a shared space with roles, categories, and an all-time scoreboard. Your new profile page is the entry point: see every organization you're in and your action items across all rooms.",
+      "pt-BR": "Crie uma organização, convide seu time com um link e rode retros num espaço compartilhado, com papéis, categorias e um placar geral. Sua nova página de perfil é o ponto de entrada: veja todas as organizações que você participa e seus itens de ação em todas as salas.",
+    },
+    image: {
+      en: "/whatsnew/orgs-en.png",
+      "pt-BR": "/whatsnew/orgs-ptbr.png",
+    },
+  },
+  {
     version: "1.15.0",
     tag: { en: "PDF Export", "pt-BR": "Exportar PDF" },
     title: { en: "Export your retro as a PDF", "pt-BR": "Exporte sua retro em PDF" },
