@@ -5,10 +5,11 @@ import { useTranslations } from "next-intl";
 import { ExportIcon } from "@/components/ui/Icons";
 import { ExportPdfModal } from "@/components/room/ExportPdfModal";
 import type { RegularColumnGroup } from "@/lib/pdf/pdfTypes";
-import type { Card, Participant, Room, ScoreboardEntry } from "@/types";
+import type { Card, Organization, Participant, Room, ScoreboardEntry } from "@/types";
 
 interface ExportPdfMenuProps {
   room: Room;
+  organization: Pick<Organization, "name" | "colorId"> | null;
   endedDate: string | null;
   participants: Participant[];
   scoreboard: ScoreboardEntry[];
@@ -19,6 +20,7 @@ interface ExportPdfMenuProps {
 
 export function ExportPdfMenu({
   room,
+  organization,
   endedDate,
   participants,
   scoreboard,
@@ -42,6 +44,7 @@ export function ExportPdfMenu({
       {open && (
         <ExportPdfModal
           room={room}
+          organization={organization}
           endedDate={endedDate}
           participants={participants}
           scoreboard={scoreboard}

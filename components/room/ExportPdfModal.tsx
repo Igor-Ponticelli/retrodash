@@ -31,10 +31,11 @@ import {
   type PdfTranslations,
   type RegularColumnGroup,
 } from "@/lib/pdf/pdfTypes";
-import type { Card, Participant, Room, ScoreboardEntry } from "@/types";
+import type { Card, Organization, Participant, Room, ScoreboardEntry } from "@/types";
 
 interface ExportPdfModalProps {
   room: Room;
+  organization: Pick<Organization, "name" | "colorId"> | null;
   endedDate: string | null;
   participants: Participant[];
   scoreboard: ScoreboardEntry[];
@@ -67,6 +68,7 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export function ExportPdfModal({
   room,
+  organization,
   endedDate,
   participants,
   scoreboard,
@@ -160,6 +162,7 @@ export function ExportPdfModal({
       const blob = await generateSummaryPdf(
         {
           room,
+          organization,
           endedDate,
           participants,
           scoreboard,
