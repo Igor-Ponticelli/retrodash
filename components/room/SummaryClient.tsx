@@ -31,6 +31,7 @@ import { CommentThread } from "@/components/board/CommentThread";
 import { VotersBadge } from "@/components/board/CardVoters";
 import { Modal } from "@/components/ui/Modal";
 import { Navbar } from "@/components/ui/Navbar";
+import { CategoryBadge } from "@/components/org/CategoryBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
   ArrowLeftIcon,
@@ -487,6 +488,11 @@ function ActionItemRow({
             {t("returnedCount", { count: card.returnCount ?? 0 })}
           </span>
         )}
+        {card.categoryId && card.categoryTitle && (
+          <div className="mt-1.5">
+            <CategoryBadge title={card.categoryTitle} colorId={card.categoryColorId} />
+          </div>
+        )}
         {!isAnonymous && (
           <div className="flex items-center gap-1.5 mt-1.5">
             {card.authorName ? (
@@ -645,24 +651,26 @@ function SummaryCard({
       <p className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
         {card.text}
       </p>
-      <div className="flex items-center justify-between mt-2">
-        {!isAnonymous ? (
-          card.authorName ? (
-            <div className="flex items-center gap-1.5">
-              <Avatar
-                photoURL={card.authorPhotoURL}
-                name={card.authorName}
-                size={24}
-              />
-              <span className="text-text-muted text-xs">{card.authorName}</span>
-            </div>
-          ) : (
-            <AnonymousChip label={t("anonymous")} />
-          )
-        ) : (
-          <span />
-        )}
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between mt-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {card.categoryId && card.categoryTitle && (
+            <CategoryBadge title={card.categoryTitle} colorId={card.categoryColorId} />
+          )}
+          {!isAnonymous &&
+            (card.authorName ? (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Avatar
+                  photoURL={card.authorPhotoURL}
+                  name={card.authorName}
+                  size={24}
+                />
+                <span className="text-text-muted text-xs truncate">{card.authorName}</span>
+              </div>
+            ) : (
+              <AnonymousChip label={t("anonymous")} />
+            ))}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
           {card.votedBy.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-text-muted">
               <ThumbUpIcon />
