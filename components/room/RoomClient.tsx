@@ -408,8 +408,8 @@ function RoomBoard({ roomId, userId, userName, userPhotoURL }: RoomBoardProps) {
                     setFilterCategoryId(isActive ? null : category.id);
                     setCategoryFilterOpen(false);
                   }}
-                  className={`rounded-lg border transition-colors cursor-pointer ${
-                    isActive ? "border-accent-primary" : "border-transparent"
+                  className={`p-0.5 rounded-lg border transition-colors cursor-pointer ${
+                    isActive ? "border-accent-primary" : "border-transparent hover:border-border"
                   }`}
                 >
                   <CategoryBadge title={category.title} colorId={category.colorId} />
