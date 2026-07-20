@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoom } from "@/hooks/useRoom";
 import { useCards } from "@/hooks/useCards";
 import { useParticipants } from "@/hooks/useParticipants";
+import { useOrganization } from "@/hooks/useOrganization";
+import { OrgAvatar } from "@/components/org/OrgAvatar";
 import { roomPath, roomSummaryPath } from "@/lib/roomPath";
 import { retryOnPermissionDenied } from "@/lib/retryOnPermissionDenied";
 import {
@@ -113,6 +115,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
   const { room, columns, loading: roomLoading } = useRoom(roomId);
   const { cards, loading: cardsLoading } = useCards(roomId);
   const { participants } = useParticipants(roomId);
+  const { organization } = useOrganization(room?.orgId);
   const t = useTranslations("summary");
   const locale = useLocale();
 
@@ -264,6 +267,7 @@ function SummaryContent({ roomId }: { roomId: string }) {
 
           <ExportPdfMenu
             room={room}
+            organization={organization}
             endedDate={endedDate}
             participants={participants}
             scoreboard={scoreboard}
@@ -272,6 +276,16 @@ function SummaryContent({ roomId }: { roomId: string }) {
             regularColumns={regularColumnsWithCards}
           />
         </div>
+
+        {room.orgId && organization && (
+          <Link
+            href={`/org/${room.orgId}`}
+            className="inline-flex items-center gap-2.5 text-text-muted hover:text-text-secondary transition-colors"
+          >
+            <OrgAvatar name={organization.name} colorId={organization.colorId} size={28} />
+            <span className="text-sm font-semibold">{organization.name}</span>
+          </Link>
+        )}
 
         {participants.length > 0 && (
           <section>
