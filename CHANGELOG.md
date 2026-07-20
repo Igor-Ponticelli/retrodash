@@ -1,3 +1,9 @@
+## [1.17.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.16.0...v1.17.0) (2026-07-20)
+
+### Features
+
+* add organizations with roles, categories, and org-scoped rooms ([#49](https://github.com/Igor-Ponticelli/retrodash/issues/49)) ([8fe0d5f](https://github.com/Igor-Ponticelli/retrodash/commit/8fe0d5feeea669a8489f85622d6b791b79b9fb60))
+
 ## [1.16.0](https://github.com/Igor-Ponticelli/retrodash/compare/v1.15.3...v1.16.0) (2026-07-15)
 
 ### Features
