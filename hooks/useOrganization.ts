@@ -9,17 +9,20 @@ import type { Organization } from "@/types";
 
 const orgCache = createRemountCache<Organization | null>();
 
-export function useOrganization(orgId: string) {
+// orgId is optional so call sites that only sometimes operate in an org
+// context (e.g. SummaryClient, shared between personal and org rooms) can
+// call this unconditionally instead of branching on the Rules of Hooks.
+export function useOrganization(orgId: string | undefined) {
   const { user } = useAuth();
-  const cacheKey = user ? `${orgId}:${user.uid}` : null;
+  const cacheKey = user && orgId ? `${orgId}:${user.uid}` : null;
   const hasCached = cacheKey !== null && orgCache.has(cacheKey);
   const [organization, setOrganization] = useState<Organization | null>(() =>
     hasCached ? orgCache.get(cacheKey!)! : null,
   );
-  const [loading, setLoading] = useState(() => !hasCached);
+  const [loading, setLoading] = useState(() => !!orgId && !hasCached);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !orgId) return;
     const key = `${orgId}:${user.uid}`;
 
     const unsub = onSnapshot(
