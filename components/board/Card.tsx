@@ -639,7 +639,7 @@ export function CardItem({
                       t={t}
                     />
                   ))}
-                <ActionStatusSegment
+                <ActionStatusPicker
                   status={actionStatus}
                   onChange={(s) => setActionStatus(roomId, card.id, s)}
                   t={t}
@@ -653,7 +653,25 @@ export function CardItem({
   );
 }
 
-function ActionStatusSegment({
+const STATUS_MENU_WIDTH = 128;
+const STATUS_MENU_HEIGHT = 104;
+const STATUS_MENU_GAP = 8;
+
+function statusColorClass(value: "pending" | "done" | "keep") {
+  return value === "done"
+    ? "bg-green-600/15 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+    : value === "keep"
+      ? "bg-accent-violet/20 text-accent-violet"
+      : "bg-orange-500/15 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400";
+}
+
+// Only the active status shows on the card itself (matches the assignee/
+// category pickers' footprint instead of a permanently-expanded 3-way
+// segmented control, which was pushing up the card's minimum width once
+// categories shipped alongside it). Clicking opens a small anchored popover
+// (same positioning pattern as AssigneeSelector below) instead of the
+// room-wide dimming Modal, since this is a quick single-value pick.
+function ActionStatusPicker({
   status,
   onChange,
   t,
@@ -662,33 +680,115 @@ function ActionStatusSegment({
   onChange: (s: "pending" | "done" | "keep") => void;
   t: ReturnType<typeof import("next-intl").useTranslations<"board">>;
 }) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        buttonRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      )
+        return;
+      setOpen(false);
+    };
+    const handleScroll = (e: Event) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const handleResize = () => setOpen(false);
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open]);
+
+  const openMenu = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setOpen(true);
+      return;
+    }
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const fitsAbove = spaceAbove >= STATUS_MENU_HEIGHT + STATUS_MENU_GAP;
+    const fitsBelow = spaceBelow >= STATUS_MENU_HEIGHT + STATUS_MENU_GAP;
+    const openAbove = fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow);
+
+    let top = openAbove
+      ? rect.top - STATUS_MENU_GAP - STATUS_MENU_HEIGHT
+      : rect.bottom + STATUS_MENU_GAP;
+    top = Math.min(
+      Math.max(top, STATUS_MENU_GAP),
+      window.innerHeight - STATUS_MENU_HEIGHT - STATUS_MENU_GAP,
+    );
+
+    setMenuPos({ top, left: rect.right - STATUS_MENU_WIDTH });
+    setOpen(true);
+  };
+
   const options = [
     { value: "pending" as const, label: t("statusPending") },
     { value: "done" as const, label: t("statusDone") },
     { value: "keep" as const, label: t("statusKeep") },
   ];
 
+  const handleSelect = (value: "pending" | "done" | "keep") => {
+    onChange(value);
+    setOpen(false);
+  };
+
   return (
-    <div className="flex items-center gap-px bg-bg-card border border-border rounded p-0.5">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`px-2 h-5 rounded-sm text-[10px] font-medium transition-colors cursor-pointer ${
-            status === opt.value
-              ? opt.value === "done"
-                ? "bg-green-600/15 text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                : opt.value === "keep"
-                  ? "bg-accent-violet/20 text-accent-violet"
-                  : "bg-orange-500/15 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400"
-              : "text-text-muted hover:text-text-primary"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        className={`px-2 h-5 rounded-sm text-[10px] font-medium transition-colors cursor-pointer flex items-center ${statusColorClass(status)}`}
+      >
+        {options.find((opt) => opt.value === status)?.label}
+      </button>
+
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              width: STATUS_MENU_WIDTH,
+            }}
+            className="fixed z-50 flex flex-col gap-0.5 bg-bg-card border border-border rounded-lg shadow-xl p-1"
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleSelect(opt.value)}
+                className={`w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  status === opt.value
+                    ? statusColorClass(opt.value)
+                    : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -725,7 +825,7 @@ function CategoryPicker({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0"
+        className="shrink-0 cursor-pointer flex items-center"
       >
         {card.categoryId && card.categoryTitle ? (
           <CategoryBadge title={card.categoryTitle} colorId={card.categoryColorId} />
@@ -745,9 +845,7 @@ function CategoryPicker({
                 type="button"
                 disabled={saving}
                 onClick={() => handlePick(category)}
-                className={`rounded-lg border transition-colors cursor-pointer ${
-                  card.categoryId === category.id ? "border-accent-primary" : "border-transparent"
-                }`}
+                className={`p-0.5 transition-colors cursor-pointer`}
               >
                 <CategoryBadge title={category.title} colorId={category.colorId} />
               </button>
