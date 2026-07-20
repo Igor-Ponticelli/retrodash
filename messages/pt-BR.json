@@ -573,6 +573,8 @@
     "newCategory": "Nova categoria",
     "categoryTitlePlaceholder": "ex.: Processo, Ferramentas, Comunicação…",
     "pickColor": "Cor",
+    "categoryColumn": "Categoria",
+    "editCategory": "Editar categoria",
     "deleteCategoryConfirm": "Excluir categoria",
     "scoreboardsTab": "Placar",
     "allTimeRanking": "Ranking geral",

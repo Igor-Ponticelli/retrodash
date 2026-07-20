@@ -573,6 +573,8 @@
     "newCategory": "New category",
     "categoryTitlePlaceholder": "e.g. Process, Tooling, Communication…",
     "pickColor": "Color",
+    "categoryColumn": "Category",
+    "editCategory": "Edit category",
     "deleteCategoryConfirm": "Delete category",
     "scoreboardsTab": "Scoreboard",
     "allTimeRanking": "All-time ranking",
