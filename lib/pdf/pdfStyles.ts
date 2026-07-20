@@ -260,6 +260,20 @@ export function createPdfStyles(colors: PdfColors) {
       marginBottom: 4,
       alignSelf: "flex-start",
     },
+    // Color/borderColor are overridden per-category at render time (see
+    // PdfCategoryBadge in RoomSummaryDocument.tsx) -- this only defines the
+    // shared shape, same split as the on-screen CategoryBadge component.
+    categoryBadge: {
+      fontSize: 7,
+      fontWeight: 600,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderRadius: 3,
+      paddingVertical: 1,
+      paddingHorizontal: 4,
+      marginTop: 3,
+      alignSelf: "flex-start",
+    },
     identityRow: {
       flexDirection: "row",
       alignItems: "center",

@@ -3,6 +3,7 @@ import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { Card, Participant, ScoreboardEntry } from "@/types";
 import type { PdfColors } from "./pdfColors";
 import { PDF_COLORS } from "./pdfColors";
+import { getPdfCategoryColor } from "./pdfCategoryColors";
 import type { PdfStyles } from "./pdfStyles";
 import {
   createPdfStyles,
@@ -341,6 +342,30 @@ function IdentityRow({
   );
 }
 
+function PdfCategoryBadge({
+  title,
+  colorId,
+  colors,
+  styles,
+  marginTop,
+}: {
+  title: string;
+  colorId?: string;
+  colors: PdfColors;
+  styles: PdfStyles;
+  // categoryBadge's base marginTop assumes it's stacked below other badges
+  // (PdfActionItemRow) -- PdfSummaryCard places it inline in a gapped row
+  // instead, where any top margin would break vertical centering.
+  marginTop?: number;
+}) {
+  const color = getPdfCategoryColor(colorId) ?? colors.textMuted;
+  return (
+    <Text style={[styles.categoryBadge, { color, borderColor: color, ...(marginTop !== undefined && { marginTop }) }]}>
+      {title}
+    </Text>
+  );
+}
+
 function VoteBadge({ count, colors, styles }: { count: number; colors: PdfColors; styles: PdfStyles }) {
   if (count === 0) return null;
   return (
@@ -410,6 +435,9 @@ function PdfActionItemRow({
         {(card.returnCount ?? 0) >= 1 && (
           <Text style={styles.returnedBadge}>{translations.returnedCount(card.returnCount ?? 0)}</Text>
         )}
+        {card.categoryId && card.categoryTitle && (
+          <PdfCategoryBadge title={card.categoryTitle} colorId={card.categoryColorId} colors={colors} styles={styles} />
+        )}
         <IdentityRow card={card} isAnonymous={isAnonymous} translations={translations} styles={styles} />
       </View>
       <View style={{ alignItems: "flex-end" }}>
@@ -436,18 +464,26 @@ function PdfSummaryCard({
     <View style={styles.summaryCard} wrap={false}>
       <Text style={styles.summaryCardText}>{card.text}</Text>
       <View style={styles.summaryCardFooter}>
-        {!isAnonymous ? (
-          card.authorName ? (
-            <View style={styles.inlineIdentity}>
-              <PdfAvatarInitial name={card.authorName} styles={styles} />
-              <Text style={styles.identityName}>{card.authorName}</Text>
-            </View>
-          ) : (
-            <AnonymousChip label={translations.anonymous} styles={styles} />
-          )
-        ) : (
-          <View />
-        )}
+        <View style={styles.inlineIdentity}>
+          {card.categoryId && card.categoryTitle && (
+            <PdfCategoryBadge
+              title={card.categoryTitle}
+              colorId={card.categoryColorId}
+              colors={colors}
+              styles={styles}
+              marginTop={0}
+            />
+          )}
+          {!isAnonymous &&
+            (card.authorName ? (
+              <View style={styles.inlineIdentity}>
+                <PdfAvatarInitial name={card.authorName} styles={styles} />
+                <Text style={styles.identityName}>{card.authorName}</Text>
+              </View>
+            ) : (
+              <AnonymousChip label={translations.anonymous} styles={styles} />
+            ))}
+        </View>
         <VoteBadge count={card.votedBy.length} colors={colors} styles={styles} />
       </View>
     </View>
