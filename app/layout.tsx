@@ -1,4 +1,5 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { WhatsNewProvider } from "@/components/whatsnew/WhatsNewProvider";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
@@ -29,6 +30,7 @@ export default function RootLayout({
             <WhatsNewProvider>{children}</WhatsNewProvider>
           </AuthProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
